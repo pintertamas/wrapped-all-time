@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.zip
+.terraform/
+*.tfstate*
+target/
+.DS_Store

@@ -1,0 +1,237 @@
+name: CI/CD
+
+# Factory CI/CD: changes -> Code Quality & Tests -> deploys on main. Adapt the steps to the product's
+# stack in the skeleton task; keep the job names and the deploy rules.
+# Runners are pinned; move to a newer image deliberately, after verifying the build still passes.
+# Backend deploys run only when the owner has set repository variable CLOUD_ENABLED=true.
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-24.04
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            backend:
+              - backend/**
+              - infra/**
+            frontend:
+              - frontend/**
+              - .github/workflows/ci-cd.yaml
+
+  test:
+    name: Code Quality & Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # ---- backend (Go) ----
+      - name: Set up Go
+        if: hashFiles('backend/go.mod') != ''
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.24"
+          cache-dependency-path: backend/go.sum
+
+      - name: Backend verify (Go)
+        if: hashFiles('backend/go.mod') != ''
+        working-directory: backend
+        run: |
+          go vet ./...
+          go test ./...
+
+      # ---- backend (Java / Spring Boot, Maven) ----
+      - name: Set up Java
+        if: hashFiles('backend/pom.xml') != ''
+        uses: actions/setup-java@v6
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+
+      - name: Backend verify (Java)
+        if: hashFiles('backend/pom.xml') != ''
+        run: mvn -B -q -f backend/pom.xml verify
+
+      # ---- infra ----
+      - name: Set up Terraform
+        if: hashFiles('infra/terraform/*.tf') != ''
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+
+      - name: Terraform validate (offline)
+        if: hashFiles('infra/terraform/*.tf') != ''
+        working-directory: infra/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+      # ---- frontend ----
+      - name: Set up Node (frontend)
+        if: hashFiles('frontend/package.json') != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend build
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: frontend
+        env:
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm test --if-present
+          npm run build
+
+      - name: Frontend size budget
+        if: hashFiles('frontend/scripts/size-check.mjs') != ''
+        working-directory: frontend
+        run: npm run size
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-24.04
+    needs:
+      - test
+      - changes
+    if: vars.CLOUD_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.changes.outputs.backend == 'true'))
+    concurrency:
+      group: deploy-backend   # never two terraform applies at once (no state lock)
+      cancel-in-progress: false
+    env:
+      TF_INPUT: "false"
+      TF_VAR_project_name: ${{ github.event.repository.name }}
+      TF_VAR_owner_email: ${{ vars.OWNER_EMAIL }}
+      TF_VAR_monthly_budget_usd: ${{ vars.MONTHLY_BUDGET_USD != '' && vars.MONTHLY_BUDGET_USD || '5' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Go
+        if: hashFiles('backend/go.mod') != ''
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.24"
+          cache-dependency-path: backend/go.sum
+
+      - name: Build backend (Go, linux/arm64)
+        if: hashFiles('backend/go.mod') != ''
+        working-directory: backend
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p build
+          go build -tags lambda.norpc -o build/bootstrap .
+          (cd build && zip -q lambda.zip bootstrap)
+
+      - name: Set up Java
+        if: hashFiles('backend/pom.xml') != ''
+        uses: actions/setup-java@v6
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+
+      - name: Build backend (Java)
+        if: hashFiles('backend/pom.xml') != ''
+        run: mvn -B -q -f backend/pom.xml package -DskipTests
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: terraform init -input=false
+
+      - name: Terraform apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve -input=false -parallelism=3
+
+  deploy-frontend:
+    name: Deploy Frontend (GitHub Pages)
+    runs-on: ubuntu-24.04
+    needs:
+      - test
+      - changes
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          npm ci
+          npm run build
+          cp dist/index.html dist/404.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: frontend/dist
+          include-hidden-files: "true"   # keep frontend/public/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v5
