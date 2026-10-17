@@ -42,6 +42,8 @@ frontend/
     lib/session.ts      localStorage demo-login flag (isConnected/setConnected/clearConnected)
     pages/Landing.tsx   landing + "Connect Spotify (demo)" button
     pages/MockConsent.tsx  in-app mock consent (Approve sets flag, Cancel returns)
+    data/sampleProfile.ts  fictional Spotify-API-shaped sample profile (tops per range, 50 recent plays)
+    lib/recap.ts        recap(profile, range): top 5 artists/tracks, genres, hour histogram (no totals)
     index.css           global styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Code Quality & Tests, Pages deploy)
@@ -99,3 +101,4 @@ Single-page static app, no server. Merging to `main` builds `frontend/` and depl
 | 2026-10-17 | Repository created by the software factory | software factory |
 | 2026-10-17 | POC skeleton: React + Vite page with demo banner, tests, CI build and Pages deploy (T001) | Claude Sonnet 5.5 |
 | 2026-10-17 | Fake login flow: landing, mock consent, session flag (T003) | Claude Sonnet 5.5 |
+| 2026-10-17 | Sample profile and recap computation (T002) | Claude Sonnet 5.5 |
