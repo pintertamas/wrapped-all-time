@@ -1,5 +1,5 @@
 {
-  "name": "wrapped-vault-frontend",
+  "name": "listening-vault-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "size": "node scripts/size-check.mjs"
+    "size": "node scripts/size-check.mjs",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.5",

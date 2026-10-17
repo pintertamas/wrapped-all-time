@@ -4,6 +4,10 @@ build/
 .env
 .env.*
 !.env.example
+# public VITE_* defaults only (no secrets), see frontend/.env
+!frontend/.env
+test-results/
+playwright-report/
 *.zip
 .terraform/
 *.tfstate*

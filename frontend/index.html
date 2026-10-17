@@ -3,13 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Wrapped Vault: a static demo of a listening recap. Not connected to Spotify." />
+    <meta name="description" content="%VITE_PRODUCT_NAME%: your whole Spotify listening history, every year and all time, read on your device from your data export." />
     <meta name="theme-color" content="#14111f" />
     <link rel="icon" href="data:," />
-    <title>Wrapped Vault (demo)</title>
+    <title>%VITE_PRODUCT_NAME%: every year of your listening</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="page">
+        <h1>%VITE_PRODUCT_NAME%</h1>
+        <p class="lead">Your whole Spotify listening history: every year and all time, not just the last twelve months.</p>
+        <p class="note">Load your Spotify data export. It is read on this device and never leaves it. Not affiliated with Spotify.</p>
+        <p class="note"><a href="guide/">How to get your file</a></p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

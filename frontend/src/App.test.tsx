@@ -1,73 +1,57 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import App from "./App";
-import { isConnected, setConnected } from "./lib/session";
-import { DEMO_BANNER_TEXT } from "./DemoBanner";
+import { config } from "./config";
 
-describe("App", () => {
-  it("shows the persistent demo banner", () => {
-    render(<App />);
-    const banner = screen.getByTestId("demo-banner");
-    expect(banner).toHaveTextContent(DEMO_BANNER_TEXT);
-    expect(DEMO_BANNER_TEXT).toBe("DEMO - not connected to Spotify");
+function go(hash: string) {
+  act(() => {
+    window.location.hash = hash;
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
   });
+}
 
-  it("shows the product name", () => {
-    render(<App />);
-    expect(screen.getByRole("heading", { level: 1, name: "Wrapped Vault" })).toBeInTheDocument();
-  });
+afterEach(() => {
+  window.location.hash = "";
 });
 
-describe("fake login flow", () => {
-  beforeEach(() => localStorage.clear());
-
-  it("approves through the mock consent and sets the flag without network", () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+describe("App shell", () => {
+  it("shows the landing view with the product name and import link", () => {
     render(<App />);
-    expect(screen.getByText(/Unaffiliated with Spotify/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Connect Spotify (demo)" }));
-    expect(screen.getByText("DEMO MOCK, no data leaves your device")).toBeInTheDocument();
-    expect(screen.getByText("user-top-read")).toBeInTheDocument();
-    expect(screen.getByText("user-read-recently-played")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
-    expect(isConnected()).toBe(true);
-    expect(screen.getByRole("heading", { level: 1, name: "Your last year" })).toBeInTheDocument();
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { level: 1, name: config.productName })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Load my data" })).toHaveAttribute("href", "#/import");
   });
 
-  it("cancel returns to the landing page without setting the flag", () => {
+  it("has the footer with the unaffiliated line and page links", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Connect Spotify (demo)" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(isConnected()).toBe(false);
-    expect(screen.getByRole("button", { name: "Connect Spotify (demo)" })).toBeInTheDocument();
-  });
-});
-
-describe("recap view", () => {
-  beforeEach(() => localStorage.clear());
-
-  it("shows the landing page when the flag is missing", () => {
-    render(<App />);
-    expect(screen.queryByTestId("recap")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Connect Spotify (demo)" })).toBeInTheDocument();
+    expect(screen.getByText(/Not affiliated with Spotify/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Export guide" })).toHaveAttribute("href", `${config.basePath}guide/`);
+    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", `${config.basePath}privacy/`);
+    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute("href", `${config.basePath}terms/`);
+    expect(screen.getByRole("link", { name: "Restore purchase" })).toHaveAttribute("href", "#/unlock");
   });
 
-  it("shows long_term content, switches tabs and logs out", () => {
-    setConnected();
+  it("serves every route from the hash", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { level: 1, name: "Your last year" })).toBeInTheDocument();
-    for (const t of ["Top artists", "Top tracks", "Genres", "When you listen"]) {
-      expect(screen.getByRole("heading", { level: 2, name: t })).toBeInTheDocument();
+    go("#/import");
+    expect(screen.getByTestId("import")).toBeInTheDocument();
+    go("#/recap/6m");
+    expect(screen.getByRole("heading", { level: 1, name: "Last 6 months" })).toBeInTheDocument();
+    go("#/recap/2019");
+    expect(screen.getByRole("heading", { level: 1, name: "2019" })).toBeInTheDocument();
+    go("#/recap/all");
+    expect(screen.getByRole("heading", { level: 1, name: "All time" })).toBeInTheDocument();
+    go("#/unlock");
+    expect(screen.getByTestId("unlock")).toHaveTextContent("Coming soon.");
+    go("#/does-not-exist");
+    expect(screen.getByRole("heading", { level: 1, name: config.productName })).toBeInTheDocument();
+  });
+
+  it("keeps no POC demo or fake Spotify-connect UI", () => {
+    render(<App />);
+    for (const hash of ["#/", "#/import", "#/recap/12m", "#/unlock"]) {
+      go(hash);
+      const text = document.body.textContent ?? "";
+      expect(text).not.toMatch(/DEMO|Wrapped|Connect Spotify/i);
     }
-    expect(screen.getByRole("img", { name: /Plays by hour/ }).children).toHaveLength(24);
-    fireEvent.click(screen.getByRole("tab", { name: "4 weeks" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Your last 4 weeks" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "4 weeks" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(screen.getByRole("tab", { name: "6 months" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Your last 6 months" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
-    expect(isConnected()).toBe(false);
-    expect(screen.getByRole("button", { name: "Connect Spotify (demo)" })).toBeInTheDocument();
   });
 });
