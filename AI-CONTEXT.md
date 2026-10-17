@@ -52,11 +52,11 @@ all time, HD cards without watermark, poster. Not affiliated with Spotify.
 frontend/
   .env                  public VITE_* defaults (committed on purpose; never secrets)
   index.html            app entry (landing copy is static HTML before React mounts)
-  guide/ privacy/ terms/index.html   static pages (no React), stubs for now
+  guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy/terms are stubs
   vite.config.ts        base path, multi-page inputs, CSP meta plugin, vitest config
   scripts/size-check.mjs, size-budgets.mjs   per-role gzip budgets, run after the build
   e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build
-  public/.nojekyll
+  public/.nojekyll, public/og.png   (robots.txt and sitemap.xml are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS)
   src/
     main.tsx            React root
     App.tsx             shell: header, current view, footer (unaffiliated line, guide/privacy/terms, Restore purchase)
@@ -184,4 +184,5 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-17 | Share card canvas export with DEMO watermark (T005) | Claude Sonnet 5.5 |
 | 2026-10-17 | Locked All years teaser and interest panel (T006) | Claude Sonnet 5.5 |
 | 2026-10-17 | Listening Vault foundation: POC mocks removed, `.env` config, hash router, model + protocol types, multi-page build with CSP meta, per-role size budgets, Playwright smoke e2e, CI on Node 24 without backend (T007) | Claude Sonnet 5.5 |
+| 2026-10-17 | Static export guide page with SEO tags, OG image, generated robots.txt and sitemap.xml (T018) | Claude Sonnet 5.5 |
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |

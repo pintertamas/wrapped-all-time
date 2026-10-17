@@ -40,3 +40,17 @@ test("hash router serves the app views", async ({ page }) => {
   await page.getByRole("link", { name: "Export guide" }).click();
   await expect(page).toHaveURL(/\/guide\/$/);
 });
+
+test("guide page is readable without JavaScript and ships SEO files", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto(`${baseURL}guide/`);
+  await expect(page.getByRole("heading", { name: "Extended streaming history" }).first()).toBeVisible();
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /guide\/$/);
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /og\.png$/);
+  const sitemap = await page.request.get(`${baseURL}sitemap.xml`);
+  const xml = await sitemap.text();
+  for (const path of ["", "guide/", "privacy/", "terms/"]) expect(xml).toContain(`${path}</loc>`);
+  expect((await page.request.get(`${baseURL}robots.txt`)).ok()).toBe(true);
+  await context.close();
+});

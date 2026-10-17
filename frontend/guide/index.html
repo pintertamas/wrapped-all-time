@@ -3,7 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="How to request your Spotify data export and which file to load." />
+    <meta name="description" content="Step by step: request your Spotify Account Data or Extended streaming history export, and which file to load." />
+    <meta name="robots" content="%VITE_ROBOTS%" />
+    <link rel="canonical" href="%VITE_SITE_URL%guide/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Spotify data export guide · %VITE_PRODUCT_NAME%" />
+    <meta property="og:description" content="Request your Account Data or Extended streaming history export, step by step." />
+    <meta property="og:url" content="%VITE_SITE_URL%guide/" />
+    <meta property="og:image" content="%VITE_SITE_URL%og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#14111f" />
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/src/static/static.css" />
@@ -13,7 +21,33 @@
     <main class="static-page">
       <p><a href="../">%VITE_PRODUCT_NAME%</a></p>
       <h1>How to get your Spotify data export</h1>
-      <p>The step-by-step guide is coming soon. In short: request your data from your Spotify account privacy settings, wait for the email, then load the ZIP here. It is read on your device and never uploaded.</p>
+      <p>Spotify offers two exports. Both are free, and both are read only on your device. Nothing is uploaded.</p>
+
+      <h2>Which export do you need?</h2>
+      <ul>
+        <li><strong>Account Data</strong> arrives within a few days and covers about the last 12 months of plays. Good for a quick look.</li>
+        <li><strong>Extended streaming history</strong> covers your whole account lifetime, every year, and can take up to 30 days to arrive. Choose this one for all-time stats.</li>
+      </ul>
+
+      <h2>Request Account Data</h2>
+      <ol>
+        <li>Open the Spotify website and sign in, then go to <strong>Account</strong> and then <strong>Privacy settings</strong>.</li>
+        <li>Scroll to <strong>Download your data</strong>.</li>
+        <li>Tick <strong>Account data</strong> and press <strong>Request data</strong>.</li>
+        <li>Confirm the request in the email Spotify sends you.</li>
+        <li>Wait for the second email, usually within a few days, and download the ZIP.</li>
+      </ol>
+
+      <h2>Request Extended streaming history</h2>
+      <ol>
+        <li>On the same Privacy settings page, under <strong>Download your data</strong>, tick <strong>Extended streaming history</strong>.</li>
+        <li>Press <strong>Request data</strong> and confirm in the email.</li>
+        <li>Wait for the download email. This can take up to 30 days.</li>
+        <li>Download the ZIP before the link expires.</li>
+      </ol>
+
+      <h2>Load it here</h2>
+      <p>Open <a href="../#/import">%VITE_PRODUCT_NAME%</a> and drop the ZIP, or the JSON files inside it. You do not need to unzip anything. Your files are read in your browser and never leave your device.</p>
     </main>
     <footer class="static-footer">
       <p>%VITE_PRODUCT_NAME% is not affiliated with, endorsed by or connected to Spotify.</p>
