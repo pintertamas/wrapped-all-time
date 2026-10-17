@@ -1,9 +1,11 @@
 name: CI/CD
 
-# Factory CI/CD: changes -> Code Quality & Tests -> deploys on main. Adapt the steps to the product's
-# stack in the skeleton task; keep the job names and the deploy rules.
+# Factory CI/CD: changes -> Code Quality & Tests -> deploys on main. Keep the job names and the
+# deploy rules. Level 0 product: static frontend only, no backend, no cloud resources (re-add only
+# through a later gate:cloud).
 # Runners are pinned; move to a newer image deliberately, after verifying the build still passes.
-# Backend deploys run only when the owner has set repository variable CLOUD_ENABLED=true.
+# VITE_* values are public build-time config (GitHub Environment/repo variables, never secrets);
+# an unset variable arrives empty and the committed default in frontend/.env applies.
 
 on:
   pull_request:
@@ -14,15 +16,11 @@ on:
       - main
   workflow_dispatch:
 
-env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-
 jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-24.04
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - name: Checkout
@@ -35,9 +33,6 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            backend:
-              - backend/**
-              - infra/**
             frontend:
               - frontend/**
               - .github/workflows/ci-cd.yaml
@@ -45,150 +40,90 @@ jobs:
   test:
     name: Code Quality & Tests
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # ---- backend (Go) ----
-      - name: Set up Go
-        if: hashFiles('backend/go.mod') != ''
-        uses: actions/setup-go@v7
-        with:
-          go-version: "1.24"
-          cache-dependency-path: backend/go.sum
-
-      - name: Backend verify (Go)
-        if: hashFiles('backend/go.mod') != ''
-        working-directory: backend
-        run: |
-          go vet ./...
-          go test ./...
-
-      # ---- backend (Java / Spring Boot, Maven) ----
-      - name: Set up Java
-        if: hashFiles('backend/pom.xml') != ''
-        uses: actions/setup-java@v6
-        with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "maven"
-
-      - name: Backend verify (Java)
-        if: hashFiles('backend/pom.xml') != ''
-        run: mvn -B -q -f backend/pom.xml verify
-
-      # ---- infra ----
-      - name: Set up Terraform
-        if: hashFiles('infra/terraform/*.tf') != ''
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: 1.6.6
-          terraform_wrapper: false
-
-      - name: Terraform validate (offline)
-        if: hashFiles('infra/terraform/*.tf') != ''
-        working-directory: infra/terraform
-        run: |
-          terraform fmt -check -recursive
-          terraform init -backend=false -input=false
-          terraform validate
-
-      # ---- frontend ----
-      - name: Set up Node (frontend)
-        if: hashFiles('frontend/package.json') != ''
+      - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Frontend build
-        if: hashFiles('frontend/package.json') != ''
-        working-directory: frontend
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Unit tests run on the committed .env defaults only (no VITE_* overrides).
+      - name: Unit tests
+        run: npm test
+
+      - name: Build (typecheck + vite build)
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-        run: |
-          npm ci
-          npm run lint --if-present
-          npm test --if-present
-          npm run build
+          VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
+          VITE_ENV_LABEL: ${{ vars.VITE_ENV_LABEL }}
+          VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
+          VITE_UNLOCK_PROVIDER: ${{ vars.VITE_UNLOCK_PROVIDER }}
+          VITE_UNLOCK_PRODUCT_ID: ${{ vars.VITE_UNLOCK_PRODUCT_ID }}
+          VITE_UNLOCK_STORE_ID: ${{ vars.VITE_UNLOCK_STORE_ID }}
+          VITE_SUPPORT_URL: ${{ vars.VITE_SUPPORT_URL }}
+          VITE_ANALYTICS_PROVIDER: ${{ vars.VITE_ANALYTICS_PROVIDER }}
+          VITE_ANALYTICS_SITE: ${{ vars.VITE_ANALYTICS_SITE }}
+          VITE_FEATURE_LOGIN: ${{ vars.VITE_FEATURE_LOGIN }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.VITE_SPOTIFY_CLIENT_ID }}
+        run: npm run build
 
-      - name: Frontend size budget
-        if: hashFiles('frontend/scripts/size-check.mjs') != ''
-        working-directory: frontend
+      - name: Size budgets
         run: npm run size
 
-  deploy-backend:
-    name: Deploy Backend
-    runs-on: ubuntu-24.04
-    needs:
-      - test
-      - changes
-    if: vars.CLOUD_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.changes.outputs.backend == 'true'))
-    concurrency:
-      group: deploy-backend   # never two terraform applies at once (no state lock)
-      cancel-in-progress: false
-    env:
-      TF_INPUT: "false"
-      TF_VAR_project_name: ${{ github.event.repository.name }}
-      TF_VAR_owner_email: ${{ vars.OWNER_EMAIL }}
-      TF_VAR_monthly_budget_usd: ${{ vars.MONTHLY_BUDGET_USD != '' && vars.MONTHLY_BUDGET_USD || '5' }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
 
-      - name: Set up Go
-        if: hashFiles('backend/go.mod') != ''
-        uses: actions/setup-go@v7
-        with:
-          go-version: "1.24"
-          cache-dependency-path: backend/go.sum
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Build backend (Go, linux/arm64)
-        if: hashFiles('backend/go.mod') != ''
-        working-directory: backend
+      - name: E2E (Playwright against vite preview)
         env:
-          GOOS: linux
-          GOARCH: arm64
-          CGO_ENABLED: "0"
-        run: |
-          mkdir -p build
-          go build -tags lambda.norpc -o build/bootstrap .
-          (cd build && zip -q lambda.zip bootstrap)
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+          VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
+          VITE_ENV_LABEL: ${{ vars.VITE_ENV_LABEL }}
+          VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
+          VITE_UNLOCK_PROVIDER: ${{ vars.VITE_UNLOCK_PROVIDER }}
+          VITE_UNLOCK_PRODUCT_ID: ${{ vars.VITE_UNLOCK_PRODUCT_ID }}
+          VITE_UNLOCK_STORE_ID: ${{ vars.VITE_UNLOCK_STORE_ID }}
+          VITE_SUPPORT_URL: ${{ vars.VITE_SUPPORT_URL }}
+          VITE_ANALYTICS_PROVIDER: ${{ vars.VITE_ANALYTICS_PROVIDER }}
+          VITE_ANALYTICS_SITE: ${{ vars.VITE_ANALYTICS_SITE }}
+          VITE_FEATURE_LOGIN: ${{ vars.VITE_FEATURE_LOGIN }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.VITE_SPOTIFY_CLIENT_ID }}
+        run: npm run e2e
 
-      - name: Set up Java
-        if: hashFiles('backend/pom.xml') != ''
-        uses: actions/setup-java@v6
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v6
         with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "maven"
-
-      - name: Build backend (Java)
-        if: hashFiles('backend/pom.xml') != ''
-        run: mvn -B -q -f backend/pom.xml package -DskipTests
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: 1.6.6
-          terraform_wrapper: false
-
-      - name: Terraform init
-        working-directory: infra/terraform
-        run: terraform init -input=false
-
-      - name: Terraform apply
-        working-directory: infra/terraform
-        run: terraform apply -auto-approve -input=false -parallelism=3
+          name: playwright-results
+          path: frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 7
 
   deploy-frontend:
     name: Deploy Frontend (GitHub Pages)
@@ -197,6 +132,10 @@ jobs:
       - test
       - changes
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true')
+    # Staging (test mode). Environment variables of `github-pages` override repo variables.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       contents: read
       pages: write
@@ -208,7 +147,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
@@ -216,7 +155,19 @@ jobs:
         working-directory: frontend
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
+          VITE_ENV_LABEL: ${{ vars.VITE_ENV_LABEL }}
+          VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
+          VITE_UNLOCK_PROVIDER: ${{ vars.VITE_UNLOCK_PROVIDER }}
+          VITE_UNLOCK_PRODUCT_ID: ${{ vars.VITE_UNLOCK_PRODUCT_ID }}
+          VITE_UNLOCK_STORE_ID: ${{ vars.VITE_UNLOCK_STORE_ID }}
+          VITE_SUPPORT_URL: ${{ vars.VITE_SUPPORT_URL }}
+          VITE_ANALYTICS_PROVIDER: ${{ vars.VITE_ANALYTICS_PROVIDER }}
+          VITE_ANALYTICS_SITE: ${{ vars.VITE_ANALYTICS_SITE }}
+          VITE_FEATURE_LOGIN: ${{ vars.VITE_FEATURE_LOGIN }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.VITE_SPOTIFY_CLIENT_ID }}
         run: |
           npm ci
           npm run build
@@ -234,4 +185,5 @@ jobs:
           include-hidden-files: "true"   # keep frontend/public/.nojekyll
 
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v5

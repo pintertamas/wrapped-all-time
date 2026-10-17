@@ -1,14 +1,22 @@
-export default function Landing({ onConnect }: { onConnect: () => void }) {
+import { config } from "../config";
+import { routeToHash } from "../router";
+
+export default function Landing() {
   return (
     <main className="page">
-      <h1>Wrapped Vault</h1>
+      <h1>{config.productName}</h1>
       <p className="lead">
-        See a recap of your listening, any time of year. This demo uses sample data only.
+        Your whole Spotify listening history: every year and all time, not just the last twelve months.
       </p>
-      <p className="note">Unaffiliated with Spotify.</p>
-      <button type="button" className="btn btn-primary" onClick={onConnect}>
-        Connect Spotify (demo)
-      </button>
+      <p className="note">Load your Spotify data export. It is read on this device and never leaves it.</p>
+      <div className="actions">
+        <a className="btn btn-primary" href={routeToHash({ view: "import" })}>
+          Load my data
+        </a>
+        <a className="btn" href={`${config.basePath}guide/`}>
+          How to get your file
+        </a>
+      </div>
     </main>
   );
 }
