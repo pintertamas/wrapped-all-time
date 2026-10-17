@@ -45,6 +45,8 @@ frontend/
     components/RangeTabs.tsx, components/TopList.tsx  recap building blocks
     pages/MockConsent.tsx  in-app mock consent (Approve sets flag, Cancel returns)
     data/sampleProfile.ts  fictional Spotify-API-shaped sample profile (tops per range, 50 recent plays)
+    lib/shareCard.ts    canvas share card (1080x1920, top 5 artists, top 3 tracks, DEMO watermark, no network)
+    components/ShareCardButton.tsx  "Share card" button + modal (long-press save, Download link)
     lib/recap.ts        recap(profile, range): top 5 artists/tracks, genres, hour histogram (no totals)
     index.css           global styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
@@ -105,3 +107,4 @@ Single-page static app, no server. Merging to `main` builds `frontend/` and depl
 | 2026-10-17 | Fake login flow: landing, mock consent, session flag (T003) | Claude Sonnet 5.5 |
 | 2026-10-17 | Sample profile and recap computation (T002) | Claude Sonnet 5.5 |
 | 2026-10-17 | Recap view with range switcher and logout (T004) | Claude Sonnet 5.5 |
+| 2026-10-17 | Share card canvas export with DEMO watermark (T005) | Claude Sonnet 5.5 |
