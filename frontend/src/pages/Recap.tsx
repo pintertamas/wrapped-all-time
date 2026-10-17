@@ -1,5 +1,6 @@
 import { useState } from "react";
 import RangeTabs from "../components/RangeTabs";
+import ShareCardButton from "../components/ShareCardButton";
 import TopList from "../components/TopList";
 import AllYearsTeaser from "../components/AllYearsTeaser";
 import { sampleProfile, type TimeRange } from "../data/sampleProfile";
@@ -34,6 +35,7 @@ export default function Recap({ onLogout }: { onLogout: () => void }) {
         </div>
         <p className="note">Hour of day (UTC), from recent plays</p>
       </section>
+      <ShareCardButton recap={r} title={HEADLINES[range]} />
       <AllYearsTeaser />
       <button type="button" className="btn" onClick={onLogout}>
         Log out
