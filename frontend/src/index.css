@@ -177,3 +177,7 @@ h1 {
   background: #7c5cff;
   border-radius: 2px 2px 0 0;
 }
+
+.teaser { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; }
+.teaser-chart { filter: blur(3px); opacity: 0.6; }
+.teaser-panel { margin-top: 12px; }

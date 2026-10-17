@@ -42,6 +42,7 @@ frontend/
     lib/session.ts      localStorage demo-login flag (isConnected/setConnected/clearConnected)
     pages/Landing.tsx   landing + "Connect Spotify (demo)" button
     pages/Recap.tsx     recap view: range tabs, top lists, hour histogram, Log out (App guards it with the session flag)
+    components/AllYearsTeaser.tsx  locked all-years card + $4.99 interest panel (localStorage key wrapped-interest)
     components/RangeTabs.tsx, components/TopList.tsx  recap building blocks
     pages/MockConsent.tsx  in-app mock consent (Approve sets flag, Cancel returns)
     data/sampleProfile.ts  fictional Spotify-API-shaped sample profile (tops per range, 50 recent plays)
@@ -105,3 +106,4 @@ Single-page static app, no server. Merging to `main` builds `frontend/` and depl
 | 2026-10-17 | Fake login flow: landing, mock consent, session flag (T003) | Claude Sonnet 5.5 |
 | 2026-10-17 | Sample profile and recap computation (T002) | Claude Sonnet 5.5 |
 | 2026-10-17 | Recap view with range switcher and logout (T004) | Claude Sonnet 5.5 |
+| 2026-10-17 | Locked All years teaser and interest panel (T006) | Claude Sonnet 5.5 |
