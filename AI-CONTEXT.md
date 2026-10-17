@@ -65,6 +65,8 @@ frontend/
     configSchema.ts     pure parseConfig + DEFAULTS + buildCsp (shared with vite.config.ts)
     model/types.ts      normalised model (Play, PeriodStats, StatsBundle, ImportSummary, ...)
     import/protocol.ts  worker protocol (ToWorker / FromWorker)
+    import/classify.ts  classify(name, firstItem?) -> FileClass, buildStructureInfo (keys only)
+    import/adapters/    account.ts, extended.ts: rows -> Play via field allow-list; __fixtures__/ synthetic data
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (import is a shell)
     recap/RecapPage.tsx recap view (shell)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
@@ -182,3 +184,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-17 | Share card canvas export with DEMO watermark (T005) | Claude Sonnet 5.5 |
 | 2026-10-17 | Locked All years teaser and interest panel (T006) | Claude Sonnet 5.5 |
 | 2026-10-17 | Listening Vault foundation: POC mocks removed, `.env` config, hash router, model + protocol types, multi-page build with CSP meta, per-role size budgets, Playwright smoke e2e, CI on Node 24 without backend (T007) | Claude Sonnet 5.5 |
+| 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
