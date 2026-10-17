@@ -62,3 +62,48 @@ h1 {
   font-size: 0.9375rem;
   margin: 0;
 }
+
+.btn {
+  display: inline-block;
+  min-height: 2.75rem;
+  padding: 0.6rem 1.25rem;
+  border: 1px solid var(--muted);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary {
+  margin-top: 1.5rem;
+  background: #7c5cff;
+  border-color: #7c5cff;
+  color: #fff;
+}
+
+.mock-label {
+  display: inline-block;
+  margin: 0 0 1rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px dashed var(--banner-bg);
+  color: var(--banner-bg);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.scopes {
+  margin: 0 0 1.5rem;
+  padding-left: 1.25rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actions .btn-primary {
+  margin-top: 0;
+}
