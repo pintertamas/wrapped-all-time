@@ -39,6 +39,8 @@ frontend/
     main.tsx            React root
     App.tsx             page shell
     DemoBanner.tsx      persistent demo banner (always rendered by App)
+    data/sampleProfile.ts  fictional Spotify-API-shaped sample profile (tops per range, 50 recent plays)
+    lib/recap.ts        recap(profile, range): top 5 artists/tracks, genres, hour histogram (no totals)
     index.css           global styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Code Quality & Tests, Pages deploy)
@@ -93,3 +95,4 @@ Single-page static app, no server. Merging to `main` builds `frontend/` and depl
 |---|---|---|
 | 2026-10-17 | Repository created by the software factory | software factory |
 | 2026-10-17 | POC skeleton: React + Vite page with demo banner, tests, CI build and Pages deploy (T001) | Claude Sonnet 5.5 |
+| 2026-10-17 | Sample profile and recap computation (T002) | Claude Sonnet 5.5 |
