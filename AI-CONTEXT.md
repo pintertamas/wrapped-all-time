@@ -39,6 +39,9 @@ frontend/
     main.tsx            React root
     App.tsx             page shell
     DemoBanner.tsx      persistent demo banner (always rendered by App)
+    lib/session.ts      localStorage demo-login flag (isConnected/setConnected/clearConnected)
+    pages/Landing.tsx   landing + "Connect Spotify (demo)" button
+    pages/MockConsent.tsx  in-app mock consent (Approve sets flag, Cancel returns)
     index.css           global styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Code Quality & Tests, Pages deploy)
@@ -63,6 +66,8 @@ Single-page static app, no server. Merging to `main` builds `frontend/` and depl
 
 - The demo banner is rendered by `App` above all content and is `position: fixed`; keep it on every screen and keep its text exactly "DEMO - not connected to Spotify".
 - Mobile-first CSS, no UI framework. Sample data only, never real user data.
+
+- Navigation is a `view` state in `App` (landing, consent, recap); no router. No Spotify logo or brand colours anywhere.
 
 ## 5. Repository Conventions
 
@@ -93,3 +98,4 @@ Single-page static app, no server. Merging to `main` builds `frontend/` and depl
 |---|---|---|
 | 2026-10-17 | Repository created by the software factory | software factory |
 | 2026-10-17 | POC skeleton: React + Vite page with demo banner, tests, CI build and Pages deploy (T001) | Claude Sonnet 5.5 |
+| 2026-10-17 | Fake login flow: landing, mock consent, session flag (T003) | Claude Sonnet 5.5 |
