@@ -56,7 +56,7 @@ frontend/
   vite.config.ts        base path, multi-page inputs, CSP meta plugin, vitest config
   scripts/size-check.mjs, size-budgets.mjs   per-role gzip budgets, run after the build
   e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build
-  public/.nojekyll, public/og.png   (robots.txt and sitemap.xml are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS)
+  public/.nojekyll, public/og.png, goatcounter-count.js   (goatcounter-count.js: self-hosted minimal GoatCounter client, loaded only when analytics is on; robots.txt and sitemap.xml are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS)
   src/
     main.tsx            React root
     App.tsx             shell: header, current view, footer (unaffiliated line, guide/privacy/terms, Restore purchase)
@@ -70,6 +70,7 @@ frontend/
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (import is a shell)
     recap/RecapPage.tsx recap view (shell)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
+    analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
     components/TopList.tsx  ranked list building block
     static/static.css   stylesheet of the static pages
     index.css           app styles, mobile-first
@@ -184,5 +185,6 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-17 | Share card canvas export with DEMO watermark (T005) | Claude Sonnet 5.5 |
 | 2026-10-17 | Locked All years teaser and interest panel (T006) | Claude Sonnet 5.5 |
 | 2026-10-17 | Listening Vault foundation: POC mocks removed, `.env` config, hash router, model + protocol types, multi-page build with CSP meta, per-role size budgets, Playwright smoke e2e, CI on Node 24 without backend (T007) | Claude Sonnet 5.5 |
+| 2026-10-17 | Analytics wrapper `track()` (enum props only, off by default) with lazy GoatCounter adapter (T022) | Claude Sonnet 5.5 |
 | 2026-10-17 | Static export guide page with SEO tags, OG image, generated robots.txt and sitemap.xml (T018) | Claude Sonnet 5.5 |
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
