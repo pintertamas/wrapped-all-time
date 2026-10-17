@@ -39,12 +39,28 @@ function cspMeta(cfg: AppConfig): Plugin {
   };
 }
 
+/** Emits robots.txt and sitemap.xml from VITE_SITE_URL / VITE_ROBOTS (build only). */
+function seoFiles(cfg: AppConfig): Plugin {
+  const site = cfg.siteUrl.endsWith("/") ? cfg.siteUrl : `${cfg.siteUrl}/`;
+  const urls = ["", "guide/", "privacy/", "terms/"].map((path) => `  <url><loc>${site}${path}</loc></url>`);
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
+  const robots = `User-agent: *\n${cfg.robots === "noindex" ? "Disallow: /" : "Disallow:"}\n\nSitemap: ${site}sitemap.xml\n`;
+  return {
+    name: "lv-seo-files",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap });
+      this.emitFile({ type: "asset", fileName: "robots.txt", source: robots });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, "VITE_");
   const cfg = parseConfig(env);
   return {
     base: cfg.basePath,
-    plugins: [react(), cspMeta(cfg)],
+    plugins: [react(), cspMeta(cfg), seoFiles(cfg)],
     build: {
       rollupOptions: { input: PAGES },
     },
