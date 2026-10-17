@@ -8,7 +8,7 @@ import { gzipSync } from "node:zlib";
 
 // Gzip budgets in kB (1 kB = 1000 bytes). Start generous; tighten once the app exists.
 const BUDGET_KB = {
-  entryJs: 60,
+  entryJs: 90, // React 19 + react-dom alone is about 68 kB gzip
   mainCss: 15,
 };
 

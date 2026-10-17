@@ -18,22 +18,51 @@ Proof of concept: a mobile-first static demo that fakes a Spotify login with sam
 - **Frontend is hosted on GitHub Pages.**
 - **AWS deploys only run when the owner has set `CLOUD_ENABLED=true`.** Agents never set it.
 
+**This is a static demo POC named Wrapped Vault.** There is **no backend**, **no cloud resources**, **no secrets or API keys** and **no real Spotify calls** (no OAuth, no client id, no network requests to Spotify). The only state is a flag in the browser's `localStorage`. Every screen shows a persistent banner: "DEMO - not connected to Spotify".
+
 ### Tech Stack
 | Layer | Technology |
 |---|---|
+| Frontend | React 19, TypeScript, Vite, hosted on GitHub Pages |
+| Tests | Vitest, jsdom, React Testing Library |
+| Lint | ESLint (typescript-eslint, react-hooks) |
+| Backend / infra | none (POC) |
 
 ### Directory Structure
 ```
+frontend/
+  index.html            Vite entry
+  vite.config.ts        base path from VITE_BASE_PATH (set by CI for Pages), vitest config
+  scripts/size-check.mjs  gzip size budget, run after the build
+  public/.nojekyll
+  src/
+    main.tsx            React root
+    App.tsx             page shell
+    DemoBanner.tsx      persistent demo banner (always rendered by App)
+    index.css           global styles, mobile-first
+    test-setup.ts       jest-dom matchers and cleanup
+.github/workflows/ci-cd.yaml   CI/CD (Code Quality & Tests, Pages deploy)
 ```
 
 ## 2. Essential Commands
 ```bash
-# exactly what CI runs
+# exactly what CI runs (from frontend/)
+npm ci
+npm run lint
+npm test
+npm run build      # tsc --noEmit && vite build; CI sets VITE_BASE_PATH=/<repo-name>/
+npm run size       # gzip size budget (needs a prior build)
+npm run dev        # local dev server
 ```
 
 ## 3. Architecture
 
+Single-page static app, no server. Merging to `main` builds `frontend/` and deploys `frontend/dist` to GitHub Pages (`index.html` is copied to `404.html`). No state leaves the device.
+
 ## 4. Code Patterns
+
+- The demo banner is rendered by `App` above all content and is `position: fixed`; keep it on every screen and keep its text exactly "DEMO - not connected to Spotify".
+- Mobile-first CSS, no UI framework. Sample data only, never real user data.
 
 ## 5. Repository Conventions
 
@@ -52,9 +81,15 @@ Proof of concept: a mobile-first static demo that fakes a Spotify login with sam
 
 ## 6. Testing Guidelines
 
+- Vitest + React Testing Library, tests next to the code as `*.test.ts(x)`. Globals are off: import `describe/it/expect` from `vitest`.
+
 ## 7. Gotchas
+
+- Vite `base` comes from `VITE_BASE_PATH`; locally it defaults to `/`. Use relative or `import.meta.env.BASE_URL` paths for assets.
+- The entry bundle budget in `size-check.mjs` is 90 kB gzip because React + react-dom alone are about 68 kB.
 
 ## 8. Change Log
 | Date | Change | Model |
 |---|---|---|
 | 2026-10-17 | Repository created by the software factory | software factory |
+| 2026-10-17 | POC skeleton: React + Vite page with demo banner, tests, CI build and Pages deploy (T001) | Claude Sonnet 5.5 |
