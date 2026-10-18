@@ -4,7 +4,7 @@
 // and in unit tests. Nothing here touches the network.
 import { Unzip, UnzipInflate, UnzipPassThrough, type UnzipFile } from "fflate";
 import type {
-  ExportKind, FileClass, FileReport, ImportErrorCode, ImportSummary, PeriodStats, StatsBundle,
+  ExportKind, FileClass, FileReport, ImportErrorCode, ImportSummary,
 } from "../model/types";
 import type { FromWorker, ToWorker } from "./protocol";
 import { adaptAccountMusic, adaptAccountPodcast } from "./adapters/account";
@@ -14,6 +14,7 @@ import { buildStructureInfo, classify } from "./classify";
 import { dropAccountOverlap, FileDeduper, PlayDeduper } from "./dedupe";
 import { PlayStore } from "./store";
 import { generate } from "../sample/generate";
+import { computeStats } from "../stats/compute";
 
 const MB = 1024 * 1024;
 /** Read chunk size for files and ZIPs. */
@@ -454,28 +455,6 @@ export function yearsWithData(store: PlayStore, tz: string): number[] {
 
 // ---------- worker glue ----------
 
-function emptyPeriod(from: string, to: string): PeriodStats {
-  return {
-    from, to, minutes: 0, plays: 0, podcastMinutes: 0, topArtists: [], topTracks: [], topAlbums: null,
-    topDay: null, longestStreakDays: 0, activeDays: 0, firstTrack: null, skipRate: null,
-    hourMinutes: new Array<number>(24).fill(0),
-  };
-}
-
-/**
- * Aggregate placeholder: a valid StatsBundle v1 with empty periods. The stats engine
- * (src/stats) replaces this; until then only counts and dates are real.
- */
-export function placeholderStats(summary: ImportSummary, tz: string, sample = false): StatsBundle {
-  const empty = emptyPeriod(summary.lastPlay, summary.lastPlay);
-  return {
-    version: 1, tz, sources: summary.sources, sample, latestPlay: summary.lastPlay,
-    periods: { "4w": empty, "6m": { ...empty, hourMinutes: [...empty.hourMinutes] }, "12m": { ...empty, hourMinutes: [...empty.hourMinutes] } },
-    years: {},
-    allTime: emptyPeriod(summary.firstPlay, summary.lastPlay),
-  };
-}
-
 /** Sends at most one progress message per interval; the rest are dropped. */
 export function throttleProgress(
   send: (p: ProgressInfo) => void, now: () => number = () => Date.now(), intervalMs = PROGRESS_INTERVAL_MS,
@@ -523,9 +502,9 @@ export function createWorkerHandler(post: (m: FromWorker) => void, deps: Handler
     );
     try {
       const opts = { tz, signal: controller.signal, onProgress };
-      const { summary } = "files" in sample ? await run(sample.files, opts) : await sampleRun(sample.seed, opts);
+      const { summary, store } = "files" in sample ? await run(sample.files, opts) : await sampleRun(sample.seed, opts);
       if (controller.signal.aborted) post({ type: "cancelled", jobId });
-      else post({ type: "done", jobId, summary, stats: placeholderStats(summary, tz, "seed" in sample) });
+      else post({ type: "done", jobId, summary, stats: computeStats(store, { tz, sources: summary.sources, sample: "seed" in sample }) });
     } catch (e) {
       if (e instanceof ImportError && e.code === "cancelled") post({ type: "cancelled", jobId });
       else if (e instanceof ImportError) post({ type: "error", jobId, code: e.code, summary: e.summary });

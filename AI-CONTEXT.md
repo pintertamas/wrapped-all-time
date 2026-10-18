@@ -72,6 +72,7 @@ frontend/
     import/client.ts    createImportClient: owns the worker, relays progress/result, cancel = terminate + fresh worker
     import/dedupe.ts    FileDeduper (rule 1), PlayDeduper (rule 2, hash table), dropAccountOverlap (rule 3)
     import/store.ts     PlayStore: columnar typed arrays + interned strings (worker only)
+    stats/compute.ts    computeStats(store, {tz, sources, sample}) -> StatsBundle (periods 4w/6m/12m from latestPlay, years, allTime, tops, minutes, plays); periods.ts (LocalClock tz maths, ranges), tops.ts (TopAccumulator, 30 s threshold). Day-based fields (topDay, streaks, hours, firstTrack, skipRate) are still empty until T012
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (import is a shell)
     recap/RecapPage.tsx recap view (shell)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
@@ -129,8 +130,8 @@ logic so tests drive it without a Worker. Per input file: ZIPs (detected by magi
 fflate's streaming `Unzip` in 1 MB chunks, each `.json` entry is inflated alone, parsed, adapted and
 released before the next one; loose JSON is read in chunks. Plays go through `PlayDeduper` into the
 columnar `PlayStore`; after all files `dropAccountOverlap` removes Account plays inside the Extended
-range. Only `ImportSummary` and a `StatsBundle` cross `postMessage`; the stats engine (T011) replaces
-`placeholderStats`. Progress is throttled to one message per 125 ms. Cancel in the client terminates the
+range. Only `ImportSummary` and a `StatsBundle` cross `postMessage`; the worker builds the bundle with
+`stats/computeStats`. Progress is throttled to one message per 125 ms. Cancel in the client terminates the
 worker and spawns a fresh one; stale messages are ignored by job id. `loadSample` runs
 `sample/generate.ts` through the same adapters and store (`stats.sample = true`). `ImportSummary.duplicatesSkipped` counts
 duplicate plays (rule 2); skipped duplicate files (rule 1) show as `files[].duplicateOf`. Error codes:
@@ -220,3 +221,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
 | 2026-10-18 | Parse worker pipeline: fflate streaming unzip, Worker protocol handler, throttled progress, cancel = terminate + fresh worker, de-dupe rules 1-3, columnar play store, no-network guard test (T010) | Claude Sonnet 5.5 |
 | 2026-10-18 | Seeded sample-history generator (`src/sample/generate.ts`) and `npm run fixtures` (`scripts/make-fixtures.mjs`) writing gitignored ZIPs to `frontend/.fixtures/` (T009) | Claude Sonnet 5.5 |
+| 2026-10-18 | Stats engine part 1: `src/stats/` periods, calendar years in the user's tz, all time, tops, minutes/plays; worker now returns real StatsBundle (T011) | Claude Sonnet 5.5 |
