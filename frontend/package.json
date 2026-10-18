@@ -9,10 +9,12 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
+    "fixtures": "node scripts/make-fixtures.mjs",
     "size": "node scripts/size-check.mjs",
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

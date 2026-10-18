@@ -67,8 +67,14 @@ frontend/
     model/types.ts      normalised model (Play, PeriodStats, StatsBundle, ImportSummary, ...)
     import/protocol.ts  worker protocol (ToWorker / FromWorker)
     import/classify.ts  classify(name, firstItem?) -> FileClass, buildStructureInfo (keys only)
-    import/adapters/    account.ts, extended.ts: rows -> Play via field allow-list; __fixtures__/ synthetic data
-    pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (import is a shell)
+    import/adapters/    account.ts, extended.ts: rows -> Play via field allow-list; __fixtures__/ synthetic data (files.ts: in-memory File + ZIP builders for tests)
+    import/pipeline.ts  runPipeline (read files, fflate streaming unzip, adapters, de-dupe), ImportError codes, createWorkerHandler (the Worker protocol), progress throttle, placeholder StatsBundle
+    import/parse.worker.ts  thin worker entry: wires createWorkerHandler to postMessage
+    import/client.ts    createImportClient: owns the worker, relays progress/result, cancel = terminate + fresh worker
+    import/useImport.ts React hook (useSyncExternalStore) over the import client; ImportPage accepts an injected client for tests
+    import/dedupe.ts    FileDeduper (rule 1), PlayDeduper (rule 2, hash table), dropAccountOverlap (rule 3)
+    import/store.ts     PlayStore: columnar typed arrays + interned strings (worker only)
+    pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (drop zone, progress, summary, errors)
     recap/RecapPage.tsx recap view (shell)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
@@ -79,8 +85,7 @@ frontend/
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend to GitHub Pages, Deploy Frontend to Cloudflare Pages)
 ```
-Planned modules (see the engineering plan § Repo layout): `import/` worker pipeline and adapters,
-`stats/`, `sample/`, `share/`, `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
+Planned modules (see the engineering plan § Repo layout): `stats/`, `sample/`, `share/`, `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
 
 ## 2. Essential Commands
 ```bash
@@ -99,7 +104,7 @@ npm run dev        # local dev server (no CSP meta in dev)
 
 Static multi-page site, no server. `index.html` is the React app with hash routing (so the static
 host never needs rewrites); `guide/`, `privacy/`, `terms/` are plain HTML pages. A Web Worker
-(`import/parse.worker.ts`, coming) parses the export and returns only aggregates.
+(`import/parse.worker.ts`) parses the export and returns only aggregates.
 
 **Config.** All values are public and build-time. Defaults live in `frontend/.env`; CI passes
 every `VITE_*` from GitHub variables (Environment `github-pages` for the staging deploy, repo
@@ -120,6 +125,23 @@ variables for PR builds). An empty/unset variable falls back to the `.env` defau
 | `VITE_SUPPORT_URL` | empty | public support contact |
 | `VITE_ANALYTICS_PROVIDER`, `VITE_ANALYTICS_SITE` | `none`, empty | GoatCounter (off until `gate:public`) |
 | `VITE_FEATURE_LOGIN`, `VITE_SPOTIFY_CLIENT_ID` | `false`, empty | S2 Spotify login (flagged) |
+
+**Import pipeline.** `client.ts` (main thread) creates the worker with
+`new Worker(new URL("./parse.worker.ts", import.meta.url), { type: "module" })`. The worker handles
+`ToWorker` (`load`, `loadSample`, `cancel`) and answers with `FromWorker`; `pipeline.ts` holds the
+logic so tests drive it without a Worker. Per input file: ZIPs (detected by magic bytes) go through
+fflate's streaming `Unzip` in 1 MB chunks, each `.json` entry is inflated alone, parsed, adapted and
+released before the next one; loose JSON is read in chunks. Plays go through `PlayDeduper` into the
+columnar `PlayStore`; after all files `dropAccountOverlap` removes Account plays inside the Extended
+range. Only `ImportSummary` and a `StatsBundle` cross `postMessage`; the stats engine (T011) replaces
+`placeholderStats`. Progress is throttled to one message per 125 ms. Cancel in the client terminates the
+worker and spawns a fresh one; stale messages are ignored by job id. `loadSample` runs
+`sample/generate.ts` through the same adapters and store (`stats.sample = true`). `ImportSummary.duplicatesSkipped` counts
+duplicate plays (rule 2); skipped duplicate files (rule 1) show as `files[].duplicateOf`. Error codes:
+`no-history-files`, `invalid-zip` (garbage, truncated, empty ZIP), `invalid-json` (a history file that
+is not a JSON array), `out-of-memory` (RangeError or an inflated file over 400 MB), `cancelled`,
+`unknown`. fflate re-wraps errors thrown inside its callbacks, so `ingestZip` records failures and
+rethrows them after `push()` returns.
 
 **CSP.** The build adds `<meta http-equiv="Content-Security-Policy">` right after `<meta charset>`
 on every HTML page (`buildCsp` in `configSchema.ts`): `default-src 'self'; script-src 'self'; ...;
@@ -178,6 +200,11 @@ in `ci-cd.yaml` if the name is taken or a custom domain replaces `pages.dev`).
   production build under the real base path. Today: `smoke.spec.ts` (CSP meta on every page, the
   hash routes). Planned: privacy canary, offline, perf, errors, CSP-vs-config.
 
+- Import tests build inputs with `__fixtures__/files.ts` (`memFile`, `zipFile`): jsdom's `File`/`Blob`
+  has no `arrayBuffer()`, and the pipeline only needs `{ name, size, slice().arrayBuffer() }`.
+  `noNetwork.test.ts` stubs fetch, XMLHttpRequest, sendBeacon, WebSocket, EventSource and Image.src
+  and asserts the pipeline makes zero calls; extend it when new pipeline code is added.
+
 ## 7. Gotchas
 
 - Vite `base` comes from `VITE_BASE_PATH`; locally `/`. Use `config.basePath` or relative paths.
@@ -187,6 +214,10 @@ in `ci-cd.yaml` if the name is taken or a custom domain replaces `pages.dev`).
 - Size budgets (gzip, by file-name prefix in `dist/assets`): entry `index-*.js` 100 kB, worker
   `parse.worker-*.js` 25 kB, static-page scripts 6 kB each, main CSS 15 kB, static CSS 6 kB,
   share/unlock lazy chunks 20 kB each, font woff2 30 kB. React + react-dom alone are about 68 kB.
+- The worker chunk only exists in the build once something imports `import/client.ts` (the import page);
+  until then `npm run size` has no worker file to check (about 9 kB gzip when wired, budget 25 kB).
+- fflate's `Unzip` buffers the data of entries that are never `start()`ed, so ignored entries are started
+  and discarded instead of skipped.
 - Run `npm run build` before `npm run e2e`, with the same `VITE_BASE_PATH`.
 
 ## 8. Change Log
@@ -203,4 +234,7 @@ in `ci-cd.yaml` if the name is taken or a custom domain replaces `pages.dev`).
 | 2026-10-17 | Analytics wrapper `track()` (enum props only, off by default) with lazy GoatCounter adapter (T022) | Claude Sonnet 5.5 |
 | 2026-10-17 | Static export guide page with SEO tags, OG image, generated robots.txt and sitemap.xml (T018) | Claude Sonnet 5.5 |
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
+| 2026-10-18 | Parse worker pipeline: fflate streaming unzip, Worker protocol handler, throttled progress, cancel = terminate + fresh worker, de-dupe rules 1-3, columnar play store, no-network guard test (T010) | Claude Sonnet 5.5 |
+| 2026-10-18 | Seeded sample-history generator (`src/sample/generate.ts`) and `npm run fixtures` (`scripts/make-fixtures.mjs`) writing gitignored ZIPs to `frontend/.fixtures/` (T009) | Claude Sonnet 5.5 |
+| 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
 | 2026-10-18 | Cloudflare Pages production deploy job, generated `_headers`, canonical + robots meta on every page, staging noindex with visible TEST SITE label (T025) | Claude Sonnet 5.5 |
