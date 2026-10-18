@@ -292,9 +292,16 @@ describe("worker handler (protocol)", () => {
     expect(posted[posted.length - 1]).toMatchObject({ type: "cancelled", jobId: "c1" });
   });
 
-  it("loadSample reports an error until the sample generator exists", async () => {
+  it("loadSample runs the seeded generator and marks the bundle as sample", async () => {
     const posted: FromWorker[] = [];
     await createWorkerHandler((m) => posted.push(m))({ type: "loadSample", jobId: "s", seed: 1, tz: TZ });
-    expect(posted[0]).toMatchObject({ type: "error", jobId: "s", summary: null });
+    const last = posted[posted.length - 1]!;
+    expect(last.type).toBe("done");
+    if (last.type !== "done") throw new Error("unreachable");
+    expect(last.stats.sample).toBe(true);
+    expect(last.summary.sources).toEqual(["extended"]);
+    expect(last.summary.totalPlays).toBeGreaterThan(1000);
+    expect(last.summary.years.length).toBeGreaterThanOrEqual(6);
+    expect(JSON.stringify(last)).not.toContain("endMs");
   });
 });

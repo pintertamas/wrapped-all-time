@@ -13,6 +13,7 @@ import type { AdapterResult } from "./adapters/types";
 import { buildStructureInfo, classify } from "./classify";
 import { dropAccountOverlap, FileDeduper, PlayDeduper } from "./dedupe";
 import { PlayStore } from "./store";
+import { generate } from "../sample/generate";
 
 const MB = 1024 * 1024;
 /** Read chunk size for files and ZIPs. */
@@ -203,6 +204,10 @@ class Run {
       });
       return;
     }
+    this.addAdapted(name, cls, result);
+  }
+
+  addAdapted(name: string, cls: FileClass, result: AdapterResult): void {
     let added = 0;
     for (const play of result.plays) {
       if (this.plays.add(play)) added++;
@@ -369,6 +374,21 @@ export async function runPipeline(inputs: InputFile[], options: PipelineOptions)
   }
 }
 
+/** "Try with sample data": the seeded synthetic history, through the same adapters and store. */
+export async function runSample(seed: number, options: PipelineOptions): Promise<PipelineResult> {
+  const run = new Run([], {
+    ...options, chunkBytes: options.chunkBytes ?? CHUNK_BYTES, maxEntryBytes: options.maxEntryBytes ?? MAX_ENTRY_BYTES,
+  });
+  try {
+    run.checkCancelled();
+    run.addAdapted("sample-history.json", "extended-audio", adaptExtendedAudio(generate(seed)));
+    run.checkCancelled();
+    return { summary: run.summary(), store: run.store };
+  } catch (e) {
+    throw toImportError(e, run);
+  }
+}
+
 function toImportError(e: unknown, run: Run): ImportError {
   if (e instanceof ImportError) {
     return e.summary !== null || e.code === "cancelled" ? e : new ImportError(e.code, run.summary(), e.message);
@@ -446,10 +466,10 @@ function emptyPeriod(from: string, to: string): PeriodStats {
  * Aggregate placeholder: a valid StatsBundle v1 with empty periods. The stats engine
  * (src/stats) replaces this; until then only counts and dates are real.
  */
-export function placeholderStats(summary: ImportSummary, tz: string): StatsBundle {
+export function placeholderStats(summary: ImportSummary, tz: string, sample = false): StatsBundle {
   const empty = emptyPeriod(summary.lastPlay, summary.lastPlay);
   return {
-    version: 1, tz, sources: summary.sources, sample: false, latestPlay: summary.lastPlay,
+    version: 1, tz, sources: summary.sources, sample, latestPlay: summary.lastPlay,
     periods: { "4w": empty, "6m": { ...empty, hourMinutes: [...empty.hourMinutes] }, "12m": { ...empty, hourMinutes: [...empty.hourMinutes] } },
     years: {},
     allTime: emptyPeriod(summary.firstPlay, summary.lastPlay),
@@ -472,6 +492,7 @@ export function throttleProgress(
 export interface HandlerDeps {
   now?: () => number;
   run?: typeof runPipeline;
+  runSample?: typeof runSample;
 }
 
 function validTz(tz: string): string {
@@ -490,8 +511,9 @@ function validTz(tz: string): string {
 export function createWorkerHandler(post: (m: FromWorker) => void, deps: HandlerDeps = {}): (msg: ToWorker) => Promise<void> {
   const jobs = new Map<string, AbortController>();
   const run = deps.run ?? runPipeline;
+  const sampleRun = deps.runSample ?? runSample;
 
-  async function load(jobId: string, files: File[], tzRaw: string): Promise<void> {
+  async function load(jobId: string, tzRaw: string, sample: { seed: number } | { files: File[] }): Promise<void> {
     for (const [id, c] of jobs) { c.abort(); jobs.delete(id); }
     const controller = new AbortController();
     jobs.set(jobId, controller);
@@ -500,9 +522,10 @@ export function createWorkerHandler(post: (m: FromWorker) => void, deps: Handler
       (p) => post({ type: "progress", jobId, ...p }), deps.now,
     );
     try {
-      const { summary } = await run(files, { tz, signal: controller.signal, onProgress });
+      const opts = { tz, signal: controller.signal, onProgress };
+      const { summary } = "files" in sample ? await run(sample.files, opts) : await sampleRun(sample.seed, opts);
       if (controller.signal.aborted) post({ type: "cancelled", jobId });
-      else post({ type: "done", jobId, summary, stats: placeholderStats(summary, tz) });
+      else post({ type: "done", jobId, summary, stats: placeholderStats(summary, tz, "seed" in sample) });
     } catch (e) {
       if (e instanceof ImportError && e.code === "cancelled") post({ type: "cancelled", jobId });
       else if (e instanceof ImportError) post({ type: "error", jobId, code: e.code, summary: e.summary });
@@ -515,11 +538,9 @@ export function createWorkerHandler(post: (m: FromWorker) => void, deps: Handler
   return async (msg) => {
     switch (msg.type) {
       case "load":
-        return load(msg.jobId, msg.files, msg.tz);
+        return load(msg.jobId, msg.tz, { files: msg.files });
       case "loadSample":
-        // The seeded sample generator lands with its own task; until then report it as unavailable.
-        post({ type: "error", jobId: msg.jobId, code: "unknown", summary: null });
-        return;
+        return load(msg.jobId, msg.tz, { seed: msg.seed });
       case "cancel":
         jobs.get(msg.jobId)?.abort();
         return;

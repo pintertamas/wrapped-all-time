@@ -131,8 +131,8 @@ released before the next one; loose JSON is read in chunks. Plays go through `Pl
 columnar `PlayStore`; after all files `dropAccountOverlap` removes Account plays inside the Extended
 range. Only `ImportSummary` and a `StatsBundle` cross `postMessage`; the stats engine (T011) replaces
 `placeholderStats`. Progress is throttled to one message per 125 ms. Cancel in the client terminates the
-worker and spawns a fresh one; stale messages are ignored by job id. `loadSample` answers
-`error: unknown` until the sample generator is wired in. `ImportSummary.duplicatesSkipped` counts
+worker and spawns a fresh one; stale messages are ignored by job id. `loadSample` runs
+`sample/generate.ts` through the same adapters and store (`stats.sample = true`). `ImportSummary.duplicatesSkipped` counts
 duplicate plays (rule 2); skipped duplicate files (rule 1) show as `files[].duplicateOf`. Error codes:
 `no-history-files`, `invalid-zip` (garbage, truncated, empty ZIP), `invalid-json` (a history file that
 is not a JSON array), `out-of-memory` (RangeError or an inflated file over 400 MB), `cancelled`,
@@ -219,3 +219,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-17 | Static export guide page with SEO tags, OG image, generated robots.txt and sitemap.xml (T018) | Claude Sonnet 5.5 |
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
 | 2026-10-18 | Parse worker pipeline: fflate streaming unzip, Worker protocol handler, throttled progress, cancel = terminate + fresh worker, de-dupe rules 1-3, columnar play store, no-network guard test (T010) | Claude Sonnet 5.5 |
+| 2026-10-18 | Seeded sample-history generator (`src/sample/generate.ts`) and `npm run fixtures` (`scripts/make-fixtures.mjs`) writing gitignored ZIPs to `frontend/.fixtures/` (T009) | Claude Sonnet 5.5 |

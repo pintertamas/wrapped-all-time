@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
+    "fixtures": "node scripts/make-fixtures.mjs",
     "size": "node scripts/size-check.mjs",
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },
