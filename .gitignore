@@ -13,3 +13,4 @@ playwright-report/
 *.tfstate*
 target/
 .DS_Store
+.fixtures/
