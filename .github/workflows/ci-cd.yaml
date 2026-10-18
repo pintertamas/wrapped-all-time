@@ -16,6 +16,10 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  # Cloudflare Pages project of the production site (<name>.pages.dev). Public, not a secret.
+  CF_PAGES_PROJECT: listening-vault
+
 jobs:
   changes:
     name: Detect Changes
@@ -69,6 +73,7 @@ jobs:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
           VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
           VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_CANONICAL_URL: ${{ vars.VITE_CANONICAL_URL }}
           VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
           VITE_ENV_LABEL: ${{ vars.VITE_ENV_LABEL }}
           VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
@@ -103,6 +108,7 @@ jobs:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
           VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
           VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_CANONICAL_URL: ${{ vars.VITE_CANONICAL_URL }}
           VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
           VITE_ENV_LABEL: ${{ vars.VITE_ENV_LABEL }}
           VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
@@ -157,8 +163,10 @@ jobs:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH != '' && vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
           VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
           VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
-          VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
-          VITE_ENV_LABEL: ${{ vars.VITE_ENV_LABEL }}
+          # Staging is never indexed and says so; its canonical points at the production site.
+          VITE_ROBOTS: noindex
+          VITE_ENV_LABEL: TEST SITE
+          VITE_CANONICAL_URL: https://${{ env.CF_PAGES_PROJECT }}.pages.dev/
           VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
           VITE_UNLOCK_PROVIDER: ${{ vars.VITE_UNLOCK_PROVIDER }}
           VITE_UNLOCK_PRODUCT_ID: ${{ vars.VITE_UNLOCK_PRODUCT_ID }}
@@ -187,3 +195,73 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  deploy-frontend-cloudflare:
+    name: Deploy Frontend (Cloudflare Pages)
+    runs-on: ubuntu-24.04
+    needs:
+      - test
+      - changes
+    # Same triggers as the staging deploy; skipped until the owner sets the repo variable
+    # CLOUDFLARE_ACCOUNT_ID (a public id, not a secret).
+    if: vars.CLOUDFLARE_ACCOUNT_ID != '' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.changes.outputs.frontend == 'true'))
+    # Production (live provider values). Environment variables of `production` override repo variables.
+    environment:
+      name: production
+      url: https://${{ env.CF_PAGES_PROJECT }}.pages.dev
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # Served from the root of <project>.pages.dev; build emits dist/_headers and dist/robots.txt.
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_BASE_PATH: /
+          VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
+          VITE_SITE_URL: https://${{ env.CF_PAGES_PROJECT }}.pages.dev/
+          VITE_CANONICAL_URL: https://${{ env.CF_PAGES_PROJECT }}.pages.dev/
+          VITE_ROBOTS: ${{ vars.VITE_ROBOTS }}
+          VITE_ENV_LABEL: ""
+          VITE_CHECKOUT_URL: ${{ vars.VITE_CHECKOUT_URL }}
+          VITE_UNLOCK_PROVIDER: ${{ vars.VITE_UNLOCK_PROVIDER }}
+          VITE_UNLOCK_PRODUCT_ID: ${{ vars.VITE_UNLOCK_PRODUCT_ID }}
+          VITE_UNLOCK_STORE_ID: ${{ vars.VITE_UNLOCK_STORE_ID }}
+          VITE_SUPPORT_URL: ${{ vars.VITE_SUPPORT_URL }}
+          VITE_ANALYTICS_PROVIDER: ${{ vars.VITE_ANALYTICS_PROVIDER }}
+          VITE_ANALYTICS_SITE: ${{ vars.VITE_ANALYTICS_SITE }}
+          VITE_FEATURE_LOGIN: ${{ vars.VITE_FEATURE_LOGIN }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.VITE_SPOTIFY_CLIENT_ID }}
+        run: |
+          npm ci
+          npm run build
+
+      # The API token is passed to this step only and is never printed (no `set -x`, no echo).
+      - name: Create Pages project if missing and deploy
+        working-directory: frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}")
+          if [ "$status" = "404" ]; then
+            npx --yes wrangler@4.150.0 pages project create "${CF_PAGES_PROJECT}" --production-branch main
+          elif [ "$status" != "200" ]; then
+            echo "Cloudflare project lookup failed with HTTP ${status}" >&2
+            exit 1
+          fi
+          npx --yes wrangler@4.150.0 pages deploy dist \
+            --project-name "${CF_PAGES_PROJECT}" --branch main --commit-dirty=true

@@ -1,3 +1,4 @@
+import EnvLabel from "./components/EnvLabel";
 import { config } from "./config";
 import ImportPage from "./pages/ImportPage";
 import Landing from "./pages/Landing";
@@ -12,6 +13,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <EnvLabel label={config.envLabel} />
       <header className="site-header">
         <a className="brand" href={routeToHash({ view: "landing" })}>
           {config.productName}
