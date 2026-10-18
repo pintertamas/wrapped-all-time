@@ -70,10 +70,11 @@ frontend/
     import/pipeline.ts  runPipeline (read files, fflate streaming unzip, adapters, de-dupe), ImportError codes, createWorkerHandler (the Worker protocol), progress throttle, placeholder StatsBundle
     import/parse.worker.ts  thin worker entry: wires createWorkerHandler to postMessage
     import/client.ts    createImportClient: owns the worker, relays progress/result, cancel = terminate + fresh worker
+    import/useImport.ts React hook (useSyncExternalStore) over the import client; ImportPage accepts an injected client for tests
     import/dedupe.ts    FileDeduper (rule 1), PlayDeduper (rule 2, hash table), dropAccountOverlap (rule 3)
     import/store.ts     PlayStore: columnar typed arrays + interned strings (worker only)
     stats/compute.ts    computeStats(store, {tz, sources, sample}) -> StatsBundle (periods 4w/6m/12m from latestPlay, years, allTime, tops, minutes, plays); periods.ts (LocalClock tz maths, ranges), tops.ts (TopAccumulator, 30 s threshold). Day-based fields (topDay, streaks, hours, firstTrack, skipRate) are still empty until T012
-    pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (import is a shell)
+    pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (drop zone, progress, summary, errors)
     recap/RecapPage.tsx recap view (shell)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
@@ -222,3 +223,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-18 | Parse worker pipeline: fflate streaming unzip, Worker protocol handler, throttled progress, cancel = terminate + fresh worker, de-dupe rules 1-3, columnar play store, no-network guard test (T010) | Claude Sonnet 5.5 |
 | 2026-10-18 | Seeded sample-history generator (`src/sample/generate.ts`) and `npm run fixtures` (`scripts/make-fixtures.mjs`) writing gitignored ZIPs to `frontend/.fixtures/` (T009) | Claude Sonnet 5.5 |
 | 2026-10-18 | Stats engine part 1: `src/stats/` periods, calendar years in the user's tz, all time, tops, minutes/plays; worker now returns real StatsBundle (T011) | Claude Sonnet 5.5 |
+| 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
