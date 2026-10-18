@@ -46,6 +46,21 @@
         <li>Download the ZIP before the link expires.</li>
       </ol>
 
+      <div id="which" hidden>
+      <h2>Which file do I have?</h2>
+      <p>Pick a file or ZIP to see which package it is. Only its name is read, on your device.</p>
+      <p><input id="which-input" type="file" /></p>
+      <p id="which-result" aria-live="polite"></p>
+      </div>
+
+      <h2>Remind me</h2>
+      <p id="countdown" hidden></p>
+      <form id="reminder" hidden>
+        <p><label>Reminder date <input id="reminder-date" type="date" /></label></p>
+        <p><label><input id="reminder-recap" type="checkbox" /> Also add recap week (2 Dec 2026)</label></p>
+        <p><button type="submit">Download calendar file</button></p>
+      </form>
+
       <h2>Load it here</h2>
       <p>Open <a href="../#/import">%VITE_PRODUCT_NAME%</a> and drop the ZIP, or the JSON files inside it. You do not need to unzip anything. Your files are read in your browser and never leave your device.</p>
     </main>
@@ -53,5 +68,6 @@
       <p>%VITE_PRODUCT_NAME% is not affiliated with, endorsed by or connected to Spotify.</p>
       <nav aria-label="Footer"><a href="../guide/">Export guide</a> <a href="../privacy/">Privacy</a> <a href="../terms/">Terms</a></nav>
     </footer>
+    <script type="module" src="/src/static/guide.ts"></script>
   </body>
 </html>

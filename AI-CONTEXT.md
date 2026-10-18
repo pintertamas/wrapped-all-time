@@ -78,6 +78,7 @@ frontend/
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
     components/TopList.tsx  ranked list building block
     static/static.css   stylesheet of the static pages
+    static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
     index.css           app styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend)
@@ -220,3 +221,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
 | 2026-10-18 | Parse worker pipeline: fflate streaming unzip, Worker protocol handler, throttled progress, cancel = terminate + fresh worker, de-dupe rules 1-3, columnar play store, no-network guard test (T010) | Claude Sonnet 5.5 |
 | 2026-10-18 | Seeded sample-history generator (`src/sample/generate.ts`) and `npm run fixtures` (`scripts/make-fixtures.mjs`) writing gitignored ZIPs to `frontend/.fixtures/` (T009) | Claude Sonnet 5.5 |
+| 2026-10-18 | Guide extras: which-file checker, reminder .ics, recap-week countdown in a <6 kB static script (T019) | Claude Sonnet 5.5 |
