@@ -3,10 +3,13 @@ import type { PeriodStats, StatsBundle } from "../model/types";
 import type { RecapPeriod } from "../router";
 import { routeToHash } from "../router";
 import { clearEverything } from "../storage/clear";
-import { isUnlocked, loadPrefs, loadRecap, savePrefs } from "../storage/recap";
+import { loadPrefs, loadRecap, savePrefs } from "../storage/recap";
+import { isUnlocked } from "../unlock/entitlement";
+import LockedPreview from "./LockedPreview";
 import PeriodTabs from "./PeriodTabs";
 import StatTiles from "./StatTiles";
 import TopList from "./TopList";
+import ShareSheet from "../share/ShareSheet";
 import YearChips from "./YearChips";
 
 const LABELS: Record<string, string> = {
@@ -61,21 +64,10 @@ function Periods({ stats }: { stats: PeriodStats }) {
   );
 }
 
-function Locked({ period }: { period: RecapPeriod }) {
-  return (
-    <section className="card" data-testid="locked">
-      <h2>{period === "all" ? "All time" : period} is part of the full unlock</h2>
-      <p className="note">Numbers: ••• minutes, ••• plays. Unlock once for $4.99 to see every year and all time.</p>
-      <a className="btn btn-primary" href={routeToHash({ view: "unlock", code: null })}>
-        Unlock
-      </a>
-    </section>
-  );
-}
-
 export default function RecapPage({ period }: { period: RecapPeriod }) {
   const [bundle] = useState<StatsBundle | null>(() => loadRecap());
   const [keep, setKeep] = useState(() => loadPrefs().keepRecap);
+  const [sharing, setSharing] = useState(false);
 
   const heading = <h1>{periodLabel(period)}</h1>;
 
@@ -97,14 +89,29 @@ export default function RecapPage({ period }: { period: RecapPeriod }) {
   const stats = statsFor(bundle, period);
 
   let body;
-  if (!isFree(period) && !unlocked) body = <Locked period={period} />;
+  if (!isFree(period) && !unlocked) body = <LockedPreview label={periodLabel(period)} />;
   else if (!stats) {
     body = (
       <p className="note" data-testid="no-data">
         {extended ? `No plays found for ${periodLabel(period)}.` : "Years need the Extended streaming history."}
       </p>
     );
-  } else body = <Periods stats={stats} />;
+  } else {
+    body = (
+      <>
+        <Periods stats={stats} />
+        <button type="button" className="btn btn-primary" onClick={() => setSharing(true)}>
+          Share
+        </button>
+        {sharing && (
+          <ShareSheet
+            stats={stats} period={period} periodLabel={periodLabel(period)}
+            sample={bundle.sample} paid={isUnlocked()} onClose={() => setSharing(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <main className="page" data-testid="recap">
@@ -115,7 +122,7 @@ export default function RecapPage({ period }: { period: RecapPeriod }) {
       )}
       {heading}
       <PeriodTabs period={period} />
-      <YearChips years={years} period={period} extended={extended} />
+      <YearChips years={years} period={period} extended={extended} unlocked={unlocked} />
       {body}
       <section className="card" aria-label="Your data">
         <label>
