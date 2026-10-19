@@ -81,11 +81,12 @@ frontend/
     components/TopList.tsx  ranked list building block
     static/static.css   stylesheet of the static pages
     static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
+    share/              card renderer (lazy chunk): render.ts (renderShareCard, shareFileName, Space Grotesk 700 via @fontsource, no CDN), layouts/story.ts + square.ts (common.ts: fitText, footer), altText.ts, lazy.ts (loadShareRenderer = the dynamic import). Story 1080x1920, square 1080x1080, paid HD 2x; free cards carry "made with <name> · <host>", all cards "Not affiliated with Spotify", sample cards "SAMPLE DATA"; file <slug>-<period>-<story|square>.png
     index.css           app styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend)
 ```
-Planned modules (see the engineering plan § Repo layout): `stats/`, `sample/`, `share/`, `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
+Planned modules (see the engineering plan § Repo layout): `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
 
 ## 2. Essential Commands
 ```bash
@@ -226,3 +227,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-18 | Stats engine part 1: `src/stats/` periods, calendar years in the user's tz, all time, tops, minutes/plays; worker now returns real StatsBundle (T011) | Claude Sonnet 5.5 |
 | 2026-10-18 | Guide extras: which-file checker, reminder .ics, recap-week countdown in a <6 kB static script (T019) | Claude Sonnet 5.5 |
 | 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
+| 2026-10-19 | Share card renderer v2: story/square canvas layouts, paid HD 2x, tier watermark, SAMPLE DATA mark, alt text, self-hosted Space Grotesk (T016) | Claude Sonnet 5.5 |
