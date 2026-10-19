@@ -78,6 +78,7 @@ frontend/
     recap/              RecapPage.tsx (loads the stored StatsBundle, period routing, Keep/Clear controls), PeriodTabs, YearChips (explains that years need Extended for Account-only), StatTiles (tiles + hour chart with text), TopList (bars aria-hidden, numbers as text). Years/all time show a locked placeholder unless sample or lv.unlock.v1
     storage/            keys.ts (all lv.* keys), recap.ts (StatsBundle in sessionStorage, or localStorage when lv.prefs.v1 keepRecap; aggregates only), clear.ts (clearEverything: removes lv.* from both storages, terminates registered workers, goes to #/)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
+    unlock/             verifier.ts (UnlockVerifier, createVerifier(config): none -> comingSoonVerifier, no request), verifiers/lemonsqueezy.ts (POST /v1/licenses/validate; Gumroad is a later task), key.ts (normalizeKey), entitlement.ts (isUnlocked, writeEntitlement -> lv.unlock.v1 {v,provider,keyLast4,verifiedAt}, redeemKey = verify + write, readCodeFromHash strips ?code= via replaceState). Never store or log the full key or the provider response; tests use mocked fetch only
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
     static/static.css   stylesheet of the static pages
     static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
@@ -235,3 +236,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Count-up motion on stat tiles (900 ms ease-out), off under reduced motion or without matchMedia (T028) | software factory |
 | 2026-10-19 | Locked previews: `unlock/entitlement.ts` (read-only `isUnlocked`), `recap/LockedPreview.tsx`, teaser links on locked year chips / All time / HD to `#/unlock` (T015) | Claude Sonnet 5.5 |
 | 2026-10-19 | Share sheet: previews, Web Share with download fallback, HD only when unlocked (T017) | Claude Sonnet 5.5 |
+| 2026-10-19 | UnlockVerifier interface, Lemon Squeezy verifier, entitlement write (`redeemKey`) and `readCodeFromHash` (T020) | Claude Sonnet 5.5 |
