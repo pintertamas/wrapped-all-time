@@ -238,3 +238,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | UnlockVerifier interface, Lemon Squeezy verifier, entitlement write (`redeemKey`) and `readCodeFromHash` (T020) | Claude Sonnet 5.5 |
 | 2026-10-19 | Unlock sheet: checkout link, key entry/restore, per-reason errors, Account-only warning, lazy chunk (T021) | Claude Sonnet 5.5 |
 | 2026-10-19 | Playwright e2e suite: privacy canary, offline, perf, errors, CSP (T024) | Claude Sonnet 5.5 |
+| 2026-10-20 | Paid print poster: `share/layouts/poster.ts` (1080x1440 logical, 2.5x = 2700x3600 px, under 16.7 MP), poster section in ShareSheet (unlock teaser when locked) (T026) | Claude Sonnet 5.5 |

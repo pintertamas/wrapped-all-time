@@ -108,3 +108,18 @@ describe("share card renderer", () => {
     expect(buildAltText(stats({ topArtists: [], topTracks: [] }), "All time")).not.toContain("Top");
   });
 });
+
+describe("poster", () => {
+  it("renders 2700x3600 (under 16.7 MP) with the disclaimer and no watermark", async () => {
+    const { card, rec } = await render({ format: "poster", paid: true, hd: true });
+    expect(rec.size).toEqual([2700, 3600]);
+    expect(card.width * card.height).toBeLessThan(16_700_000);
+    expect(rec.scale).toEqual([2.5]);
+    expect(rec.texts).toContain("Not affiliated with Spotify");
+    expect(rec.texts.some((t) => t.startsWith("made with"))).toBe(false);
+    expect(rec.texts).toContain("1  Aurora Lane");
+  });
+  it("refuses locked users", async () => {
+    await expect(render({ format: "poster", paid: false })).rejects.toThrow();
+  });
+});
