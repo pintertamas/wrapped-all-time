@@ -73,7 +73,7 @@ frontend/
     import/useImport.ts React hook (useSyncExternalStore) over the import client; ImportPage accepts an injected client for tests
     import/dedupe.ts    FileDeduper (rule 1), PlayDeduper (rule 2, hash table), dropAccountOverlap (rule 3)
     import/store.ts     PlayStore: columnar typed arrays + interned strings (worker only)
-    stats/compute.ts    computeStats(store, {tz, sources, sample}) -> StatsBundle (periods 4w/6m/12m from latestPlay, years, allTime, tops, minutes, plays); periods.ts (LocalClock tz maths, ranges), tops.ts (TopAccumulator, 30 s threshold). Day-based fields (topDay, streaks, hours, firstTrack, skipRate) are still empty until T012
+    stats/compute.ts    computeStats(store, {tz, sources, sample}) -> StatsBundle (periods 4w/6m/12m from latestPlay, years, allTime, tops, minutes, plays); periods.ts (LocalClock tz maths, ranges), tops.ts (TopAccumulator, 30 s threshold). days.ts (DayAccumulator): topDay, longestStreakDays, activeDays (30 s plays), hourMinutes (local hour), and Extended-only firstTrack / skipRate (null otherwise)
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (drop zone, progress, summary, errors)
     recap/RecapPage.tsx recap view (shell)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
@@ -227,3 +227,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-18 | Guide extras: which-file checker, reminder .ics, recap-week countdown in a <6 kB static script (T019) | Claude Sonnet 5.5 |
 | 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
 | 2026-10-19 | Privacy page (stored `lv.*` keys, CSP enforcement) and terms page (unaffiliated statement, $4.99 unlock, honour system) replace the stubs (T023) | Claude Haiku 5.5 |
+| 2026-10-19 | Stats engine part 2: `stats/days.ts` top day, streaks, active days, hour minutes, first track, skip rate (T012) | Claude Sonnet 5.5 |

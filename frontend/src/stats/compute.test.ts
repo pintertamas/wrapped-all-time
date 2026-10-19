@@ -133,3 +133,61 @@ describe("sample data (F3)", () => {
     for (const p of Object.values(b.periods)) expect(p.hourMinutes).toHaveLength(24);
   });
 });
+
+describe("day-based fields", () => {
+  it("handles the Europe/Budapest DST change day (23 h) for day and hour", () => {
+    // 2024-03-31: clocks jump 02:00 -> 03:00 (UTC+1 -> UTC+2)
+    const b = computeStats(store([
+      play("2024-03-30T23:30:00Z", { msPlayed: 60_000 }), // local 31 Mar 00:30
+      play("2024-03-31T00:30:00Z", { msPlayed: 120_000 }), // local 01:30
+      play("2024-03-31T01:30:00Z", { msPlayed: 180_000 }), // local 03:30
+      play("2024-03-31T22:30:00Z", { msPlayed: 60_000 }), // local 1 Apr 00:30
+    ]), opts("Europe/Budapest"));
+    const a = b.allTime;
+    expect(a.topDay).toEqual({ date: "2024-03-31", minutes: 6 });
+    expect(a.activeDays).toBe(2);
+    expect(a.longestStreakDays).toBe(2);
+    expect(a.hourMinutes).toHaveLength(24);
+    expect(a.hourMinutes[0]).toBe(2);
+    expect(a.hourMinutes[1]).toBe(2);
+    expect(a.hourMinutes[2]).toBe(0);
+    expect(a.hourMinutes[3]).toBe(3);
+  });
+  it("counts a streak across a year boundary and fills every period", () => {
+    const b = computeStats(store([
+      play("2023-12-30T12:00:00Z"), play("2023-12-31T12:00:00Z"),
+      play("2024-01-01T12:00:00Z"), play("2024-01-03T12:00:00Z"),
+    ]), opts("UTC"));
+    expect(b.allTime.longestStreakDays).toBe(3);
+    expect(b.allTime.activeDays).toBe(4);
+    expect(b.years["2023"]!.longestStreakDays).toBe(2);
+    expect(b.years["2024"]!.longestStreakDays).toBe(1);
+    for (const p of [...Object.values(b.periods), ...Object.values(b.years)]) {
+      expect(p.hourMinutes).toHaveLength(24);
+      expect(p.topDay).not.toBeNull();
+    }
+  });
+  it("needs a 30 s play to make a day active", () => {
+    const b = computeStats(store([
+      play("2024-05-01T10:00:00Z", { msPlayed: 29_999 }),
+      play("2024-05-02T10:00:00Z", { msPlayed: 30_000 }),
+      play("2024-05-03T10:00:00Z", { msPlayed: 29_999 }),
+    ]), opts("UTC"));
+    expect(b.allTime.activeDays).toBe(1);
+    expect(b.allTime.longestStreakDays).toBe(1);
+  });
+  it("sets firstTrack and skipRate only with Extended data", () => {
+    const ext = computeStats(store([
+      play("2024-05-02T10:00:00Z", { track: "second", skipped: true }),
+      play("2024-05-01T10:00:00Z", { track: "first", artist: "X", skipped: false }),
+      play("2024-05-03T10:00:00Z", { skipped: null }),
+      play("2024-05-04T10:00:00Z", { skipped: false }),
+    ]), opts("UTC"));
+    expect(ext.allTime.firstTrack).toEqual({ track: "first", artist: "X", date: "2024-05-01" });
+    expect(ext.allTime.skipRate).toBe(0.25);
+    const acc = computeStats(store([play("2024-05-01T10:00:00Z", { source: "account" })]), opts("UTC", ["account"]));
+    expect(acc.allTime.firstTrack).toBeNull();
+    expect(acc.allTime.skipRate).toBeNull();
+    expect(acc.allTime.topDay).not.toBeNull();
+  });
+});
