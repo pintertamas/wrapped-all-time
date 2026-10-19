@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { renderYearPage, yearRange } from "./src/static/yearPages.ts";
 import { buildCsp, parseConfig, type AppConfig } from "./src/configSchema.ts";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -11,6 +12,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 export const PAGES = {
   index: resolve(root, "index.html"),
   guide: resolve(root, "guide/index.html"),
+  faq: resolve(root, "faq/index.html"),
   privacy: resolve(root, "privacy/index.html"),
   terms: resolve(root, "terms/index.html"),
 };
@@ -42,7 +44,7 @@ function cspMeta(cfg: AppConfig): Plugin {
 /** Emits robots.txt and sitemap.xml from VITE_SITE_URL / VITE_ROBOTS (build only). */
 function seoFiles(cfg: AppConfig): Plugin {
   const site = cfg.siteUrl.endsWith("/") ? cfg.siteUrl : `${cfg.siteUrl}/`;
-  const urls = ["", "guide/", "privacy/", "terms/"].map((path) => `  <url><loc>${site}${path}</loc></url>`);
+  const urls = ["", "guide/", "faq/", "privacy/", "terms/", ...yearRange().map((y) => `year/${y}/`)].map((path) => `  <url><loc>${site}${path}</loc></url>`);
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
   const robots = `User-agent: *\n${cfg.robots === "noindex" ? "Disallow: /" : "Disallow:"}\n\nSitemap: ${site}sitemap.xml\n`;
   return {
@@ -55,12 +57,43 @@ function seoFiles(cfg: AppConfig): Plugin {
   };
 }
 
+/** Emits /year/<yyyy>/index.html for every year as static HTML (no JS) with the CSP meta tag. */
+function yearPages(cfg: AppConfig): Plugin {
+  const site = cfg.siteUrl.endsWith("/") ? cfg.siteUrl : `${cfg.siteUrl}/`;
+  const csp = buildCsp(cfg);
+  return {
+    name: "lv-year-pages",
+    apply: "build",
+    generateBundle: {
+      order: "post",
+      handler(_opts, bundle) {
+      // Reuse the hashed stylesheet link Vite wrote into the built FAQ page.
+      const faq = bundle["faq/index.html"];
+      const html = faq && faq.type === "asset" ? String(faq.source) : "";
+      const tag = /<link rel="stylesheet"[^>]*>/.exec(html)?.[0] ?? "";
+      const stylesheetTag = tag.replace(/href="([^"]*)"/, (_m, href: string) => `href="${relativize(href, cfg.basePath)}"`);
+      const years = yearRange();
+      for (const year of years) {
+        const source = renderYearPage({ year, productName: cfg.productName, siteUrl: site, robots: cfg.robots, csp, stylesheetTag });
+        this.emitFile({ type: "asset", fileName: `year/${year}/index.html`, source });
+      }
+      },
+    },
+  };
+}
+
+// Stylesheet hrefs in built pages are absolute under the base path; year pages sit two levels deeper.
+function relativize(href: string, base: string): string {
+  const b = base.endsWith("/") ? base : `${base}/`;
+  return href.startsWith(b) ? `../../${href.slice(b.length)}` : href;
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, "VITE_");
   const cfg = parseConfig(env);
   return {
     base: cfg.basePath,
-    plugins: [react(), cspMeta(cfg), seoFiles(cfg)],
+    plugins: [react(), cspMeta(cfg), seoFiles(cfg), yearPages(cfg)],
     build: {
       rollupOptions: { input: PAGES },
     },

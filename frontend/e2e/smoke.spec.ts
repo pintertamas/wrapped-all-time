@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Smoke test of the built shell: every page loads under its CSP without errors, and the hash
 // router serves the app views. The full privacy/offline/perf/errors suites come later.
-const PAGES = ["", "guide/", "privacy/", "terms/"];
+const PAGES = ["", "guide/", "faq/", "privacy/", "terms/", "year/2024/"];
 
 test("every HTML page has the generated CSP meta tag and loads cleanly", async ({ page }) => {
   const problems: string[] = [];
