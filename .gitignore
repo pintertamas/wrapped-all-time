@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-verify/
 build/
 .env
 .env.*

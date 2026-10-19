@@ -55,7 +55,7 @@ frontend/
   guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy lists the lv.* storage keys and the CSP enforcement, terms holds the unaffiliated statement, the $4.99 unlock and the honour-system note
   vite.config.ts        base path, multi-page inputs, CSP meta plugin, vitest config
   scripts/size-check.mjs, size-budgets.mjs   per-role gzip budgets, run after the build
-  e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build
+  e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build (helpers.ts, global-setup.ts: fixtures via `npm run fixtures` when missing)
   public/.nojekyll, public/og.png, goatcounter-count.js   (goatcounter-count.js: self-hosted minimal GoatCounter client, loaded only when analytics is on; robots.txt and sitemap.xml are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS)
   src/
     main.tsx            React root
@@ -186,8 +186,7 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
   `describe/it/expect` from `vitest`. Unit tests run on the `.env` defaults; read values through
   `config` rather than hard-coding the product name or base path.
 - E2E specs live in `frontend/e2e/*.spec.ts` (excluded from vitest), chromium only, against the
-  production build under the real base path. Today: `smoke.spec.ts` (CSP meta on every page, the
-  hash routes). Planned: privacy canary, offline, perf, errors, CSP-vs-config.
+  production build under the real base path. Specs: `smoke` (CSP meta, hash routes), `privacy` (ZZCANARY ZIP: every request same-origin except the mocked verify POST whose body is exactly `license_key=<key>`; canary in no URL/header/body), `offline` (import + recap after `setOffline`; the worker is respawned online via Cancel first because it is fetched lazily), `perf` (50 MB set under 15 s), `errors` (wrong package, unrecognised file, corrupt ZIP), `csp` (meta equals `buildCsp(config)`, blocked foreign fetch). The privacy spec runs on a second preview (port 4174, `dist-verify/`, built with the Lemon Squeezy verifier on) started by `playwright.config.ts`.
 
 - Import tests build inputs with `__fixtures__/files.ts` (`memFile`, `zipFile`): jsdom's `File`/`Blob`
   has no `arrayBuffer()`, and the pipeline only needs `{ name, size, slice().arrayBuffer() }`.
@@ -238,4 +237,5 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Share sheet: previews, Web Share with download fallback, HD only when unlocked (T017) | Claude Sonnet 5.5 |
 | 2026-10-19 | UnlockVerifier interface, Lemon Squeezy verifier, entitlement write (`redeemKey`) and `readCodeFromHash` (T020) | Claude Sonnet 5.5 |
 | 2026-10-19 | Unlock sheet: checkout link, key entry/restore, per-reason errors, Account-only warning, lazy chunk (T021) | Claude Sonnet 5.5 |
+| 2026-10-19 | Playwright e2e suite: privacy canary, offline, perf, errors, CSP (T024) | Claude Sonnet 5.5 |
 | 2026-10-20 | Paid print poster: `share/layouts/poster.ts` (1080x1440 logical, 2.5x = 2700x3600 px, under 16.7 MP), poster section in ShareSheet (unlock teaser when locked) (T026) | Claude Sonnet 5.5 |
