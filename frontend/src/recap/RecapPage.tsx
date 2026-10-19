@@ -7,6 +7,7 @@ import { isUnlocked, loadPrefs, loadRecap, savePrefs } from "../storage/recap";
 import PeriodTabs from "./PeriodTabs";
 import StatTiles from "./StatTiles";
 import TopList from "./TopList";
+import ShareSheet from "../share/ShareSheet";
 import YearChips from "./YearChips";
 
 const LABELS: Record<string, string> = {
@@ -76,6 +77,7 @@ function Locked({ period }: { period: RecapPeriod }) {
 export default function RecapPage({ period }: { period: RecapPeriod }) {
   const [bundle] = useState<StatsBundle | null>(() => loadRecap());
   const [keep, setKeep] = useState(() => loadPrefs().keepRecap);
+  const [sharing, setSharing] = useState(false);
 
   const heading = <h1>{periodLabel(period)}</h1>;
 
@@ -104,7 +106,22 @@ export default function RecapPage({ period }: { period: RecapPeriod }) {
         {extended ? `No plays found for ${periodLabel(period)}.` : "Years need the Extended streaming history."}
       </p>
     );
-  } else body = <Periods stats={stats} />;
+  } else {
+    body = (
+      <>
+        <Periods stats={stats} />
+        <button type="button" className="btn btn-primary" onClick={() => setSharing(true)}>
+          Share
+        </button>
+        {sharing && (
+          <ShareSheet
+            stats={stats} period={period} periodLabel={periodLabel(period)}
+            sample={bundle.sample} paid={isUnlocked()} onClose={() => setSharing(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <main className="page" data-testid="recap">
