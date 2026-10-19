@@ -230,3 +230,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Share card renderer v2: story/square canvas layouts, paid HD 2x, tier watermark, SAMPLE DATA mark, alt text, self-hosted Space Grotesk (T016) | Claude Sonnet 5.5 |
 | 2026-10-19 | Privacy page (stored `lv.*` keys, CSP enforcement) and terms page (unaffiliated statement, $4.99 unlock, honour system) replace the stubs (T023) | Claude Haiku 5.5 |
 | 2026-10-19 | Stats engine part 2: `stats/days.ts` top day, streaks, active days, hour minutes, first track, skip rate (T012) | Claude Sonnet 5.5 |
+| 2026-10-19 | Static FAQ page and generated per-year pages `/year/<yyyy>/` (`src/static/yearPages.ts`, `lv-year-pages` plugin), all in the sitemap with CSP meta (T027) | Claude Sonnet 5.5 |
