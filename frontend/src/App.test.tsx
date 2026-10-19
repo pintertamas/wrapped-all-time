@@ -30,7 +30,7 @@ describe("App shell", () => {
     expect(screen.getByRole("link", { name: "Restore purchase" })).toHaveAttribute("href", "#/unlock");
   });
 
-  it("serves every route from the hash", () => {
+  it("serves every route from the hash", async () => {
     render(<App />);
     go("#/import");
     expect(screen.getByTestId("import")).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe("App shell", () => {
     go("#/recap/all");
     expect(screen.getByRole("heading", { level: 1, name: "All time" })).toBeInTheDocument();
     go("#/unlock");
-    expect(screen.getByTestId("unlock")).toHaveTextContent("Coming soon.");
+    expect(await screen.findByTestId("unlock")).toHaveTextContent("Coming soon.");
     go("#/does-not-exist");
     expect(screen.getByRole("heading", { level: 1, name: config.productName })).toBeInTheDocument();
   });

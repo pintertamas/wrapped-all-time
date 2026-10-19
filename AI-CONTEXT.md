@@ -77,7 +77,7 @@ frontend/
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (drop zone, progress, summary, errors)
     recap/              RecapPage.tsx (loads the stored StatsBundle, period routing, Keep/Clear controls), PeriodTabs, YearChips (explains that years need Extended for Account-only), StatTiles (tiles + hour chart with text), TopList (bars aria-hidden, numbers as text). Years/all time show a locked placeholder unless sample or lv.unlock.v1
     storage/            keys.ts (all lv.* keys), recap.ts (StatsBundle in sessionStorage, or localStorage when lv.prefs.v1 keepRecap; aggregates only), clear.ts (clearEverything: removes lv.* from both storages, terminates registered workers, goes to #/)
-    unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
+    unlock/UnlockSheet.tsx  unlock view, lazy-loaded from App: $4.99 offer, checkout link (VITE_CHECKOUT_URL, "Coming soon" when empty), key field (prefilled via readCodeFromHash), per-reason error messages (FAILURE_MESSAGES), lost-key link only with VITE_SUPPORT_URL, Account-only warning, honest notes
     unlock/             verifier.ts (UnlockVerifier, createVerifier(config): none -> comingSoonVerifier, no request), verifiers/lemonsqueezy.ts (POST /v1/licenses/validate; Gumroad is a later task), key.ts (normalizeKey), entitlement.ts (isUnlocked, writeEntitlement -> lv.unlock.v1 {v,provider,keyLast4,verifiedAt}, redeemKey = verify + write, readCodeFromHash strips ?code= via replaceState). Never store or log the full key or the provider response; tests use mocked fetch only
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
     static/static.css   stylesheet of the static pages
@@ -237,3 +237,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Locked previews: `unlock/entitlement.ts` (read-only `isUnlocked`), `recap/LockedPreview.tsx`, teaser links on locked year chips / All time / HD to `#/unlock` (T015) | Claude Sonnet 5.5 |
 | 2026-10-19 | Share sheet: previews, Web Share with download fallback, HD only when unlocked (T017) | Claude Sonnet 5.5 |
 | 2026-10-19 | UnlockVerifier interface, Lemon Squeezy verifier, entitlement write (`redeemKey`) and `readCodeFromHash` (T020) | Claude Sonnet 5.5 |
+| 2026-10-19 | Unlock sheet: checkout link, key entry/restore, per-reason errors, Account-only warning, lazy chunk (T021) | Claude Sonnet 5.5 |
