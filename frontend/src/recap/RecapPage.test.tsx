@@ -70,6 +70,22 @@ describe("RecapPage", () => {
     render(<RecapPage period="all" />);
     expect(screen.getByTestId("locked")).toBeInTheDocument();
     expect(screen.queryByText("999")).toBeNull();
+    expect(screen.getByTestId("teaser-unlock")).toHaveAttribute("href", "#/unlock");
+    expect(screen.getByTestId("teaser-hd")).toHaveAttribute("href", "#/unlock");
+  });
+
+  it("renders no real artist name or number from the bundle when locked, and chips tease the unlock", () => {
+    const b = bundle();
+    saveRecap(b);
+    const { container } = render(<RecapPage period="2024" />);
+    const text = container.textContent ?? "";
+    const real = [b.allTime, ...Object.values(b.years)].flatMap((p) => [
+      ...p.topArtists.map((a) => a.name),
+      String(p.minutes),
+      String(p.plays),
+    ]);
+    for (const r of real) expect(text).not.toContain(r);
+    for (const c of screen.getAllByTestId("chip-teaser")) expect(c).toHaveAttribute("href", "#/unlock");
   });
 
   it("explains that years need the Extended history for Account-only imports", () => {

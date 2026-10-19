@@ -5,10 +5,12 @@ export default function YearChips({
   years,
   period,
   extended,
+  unlocked = true,
 }: {
   years: string[];
   period: RecapPeriod;
   extended: boolean;
+  unlocked?: boolean;
 }) {
   if (!extended) {
     return (
@@ -21,7 +23,8 @@ export default function YearChips({
   if (years.length === 0) return null;
   return (
     <nav aria-label="Years" className="chips">
-      {years.map((y) => (
+      {years.map((y) =>
+        unlocked ? (
         <a
           key={y}
           className="chip"
@@ -30,7 +33,18 @@ export default function YearChips({
         >
           {y}
         </a>
-      ))}
+        ) : (
+          <a
+            key={y}
+            className="chip chip-locked"
+            data-testid="chip-teaser"
+            href={routeToHash({ view: "unlock", code: null })}
+            aria-label={`${y}, locked. Unlock to see it`}
+          >
+            {y} (locked)
+          </a>
+        ),
+      )}
     </nav>
   );
 }
