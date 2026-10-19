@@ -1,6 +1,6 @@
 import type { PeriodStats } from "../model/types";
 
-export type CardFormat = "story" | "square";
+export type CardFormat = "story" | "square" | "poster";
 
 /** Everything a layout needs, already reduced to plain strings and numbers. */
 export interface CardData {
@@ -48,5 +48,9 @@ export interface RenderedCard {
 }
 
 export const LOGICAL_WIDTH = 1080;
-export const LOGICAL_HEIGHT: Record<CardFormat, number> = { story: 1920, square: 1080 };
+export const LOGICAL_HEIGHT: Record<CardFormat, number> = { story: 1920, square: 1080, poster: 1440 };
+/** Poster print scale: 1080x1440 logical -> 2700x3600 px (18x24 in at 150 dpi, 9.72 MP). */
+export const POSTER_SCALE = 2.5;
+/** Canvas pixel limit to stay under (iOS Safari: 16.7 MP). */
+export const MAX_CANVAS_PIXELS = 16_700_000;
 export const FONT_FAMILY = '"Space Grotesk", system-ui, sans-serif';

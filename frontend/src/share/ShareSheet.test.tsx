@@ -72,3 +72,15 @@ describe("ShareSheet", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("poster export", () => {
+  it("shows the unlock teaser when locked", () => {
+    setup(false);
+    expect(screen.getByTestId("poster-section").textContent).toContain("Unlock the poster");
+    expect(screen.queryByText("Download poster PNG")).toBeNull();
+  });
+  it("offers the poster download when unlocked", () => {
+    setup(true);
+    expect(screen.getByText("Download poster PNG")).toBeTruthy();
+  });
+});
