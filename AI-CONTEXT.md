@@ -52,7 +52,7 @@ all time, HD cards without watermark, poster. Not affiliated with Spotify.
 frontend/
   .env                  public VITE_* defaults (committed on purpose; never secrets)
   index.html            app entry (landing copy is static HTML before React mounts)
-  guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy/terms are stubs
+  guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy lists the lv.* storage keys and the CSP enforcement, terms holds the unaffiliated statement, the $4.99 unlock and the honour-system note
   vite.config.ts        base path, multi-page inputs, CSP meta plugin, vitest config
   scripts/size-check.mjs, size-budgets.mjs   per-role gzip budgets, run after the build
   e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build
@@ -226,3 +226,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-18 | Stats engine part 1: `src/stats/` periods, calendar years in the user's tz, all time, tops, minutes/plays; worker now returns real StatsBundle (T011) | Claude Sonnet 5.5 |
 | 2026-10-18 | Guide extras: which-file checker, reminder .ics, recap-week countdown in a <6 kB static script (T019) | Claude Sonnet 5.5 |
 | 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
+| 2026-10-19 | Privacy page (stored `lv.*` keys, CSP enforcement) and terms page (unaffiliated statement, $4.99 unlock, honour system) replace the stubs (T023) | Claude Haiku 5.5 |
