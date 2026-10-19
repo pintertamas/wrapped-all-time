@@ -232,3 +232,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Stats engine part 2: `stats/days.ts` top day, streaks, active days, hour minutes, first track, skip rate (T012) | Claude Sonnet 5.5 |
 | 2026-10-19 | Recap view: period tabs, year chips, stat tiles, top lists, `storage/` (lv.recap.v1, lv.prefs.v1), Clear everything (T014) | Claude Sonnet 5.5 |
 | 2026-10-19 | Static FAQ page and generated per-year pages `/year/<yyyy>/` (`src/static/yearPages.ts`, `lv-year-pages` plugin), all in the sitemap with CSP meta (T027) | Claude Sonnet 5.5 |
+| 2026-10-19 | Count-up motion on stat tiles (900 ms ease-out), off under reduced motion or without matchMedia (T028) | software factory |
