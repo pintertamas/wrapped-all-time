@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PeriodStats } from "../model/types";
+import { routeToHash } from "../router";
 import { loadShareRenderer } from "./lazy";
 import type { CardFormat, RenderOptions, RenderedCard } from "./types";
 
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const FORMATS: CardFormat[] = ["story", "square"];
+const POSTER_SIZE = "Print size 2700x3600 px (18x24 in at 150 dpi)";
 const defaultRender: RenderCard = async (o) => (await loadShareRenderer()).renderShareCard(o);
 
 export function canShareFiles(file: File): boolean {
@@ -87,6 +89,17 @@ export default function ShareSheet({ stats, period, periodLabel, sample, paid, o
     setTimeout(() => URL.revokeObjectURL?.(url), 1000);
   }
 
+  async function exportPoster() {
+    if (!paid) return;
+    try {
+      const card = await renderCard({ stats, period, periodLabel, format: "poster", hd: true, paid, sample });
+      const url = download(card);
+      setTimeout(() => URL.revokeObjectURL?.(url), 1000);
+    } catch {
+      setError(true);
+    }
+  }
+
   return (
     <section className="card" role="dialog" aria-label="Share your recap" data-testid="share-sheet">
       <h2>Share your recap</h2>
@@ -109,6 +122,19 @@ export default function ShareSheet({ stats, period, periodLabel, sample, paid, o
           <input type="checkbox" checked={hd} onChange={(e) => setHd(e.target.checked)} /> HD (2x, no watermark)
         </label>
       )}
+      <div data-testid="poster-section">
+        <h3>Print poster</h3>
+        {paid ? (
+          <>
+            <p className="note">{POSTER_SIZE}.</p>
+            <button type="button" className="btn" onClick={exportPoster}>Download poster PNG</button>
+          </>
+        ) : (
+          <p className="note">
+            A print-size poster comes with the unlock. <a href={routeToHash({ view: "unlock", code: null })}>Unlock the poster</a>
+          </p>
+        )}
+      </div>
       {hint && (
         <p className="note" data-testid="share-hint">
           Saved to your downloads. If nothing downloaded, long-press the image above and choose Save image.

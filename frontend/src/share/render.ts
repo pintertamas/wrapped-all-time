@@ -2,10 +2,11 @@
 import fontUrl from "@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2?url";
 import { config } from "../config";
 import { buildAltText } from "./altText";
+import { drawPoster } from "./layouts/poster";
 import { drawSquare } from "./layouts/square";
 import { drawStory } from "./layouts/story";
 import {
-  LOGICAL_HEIGHT, LOGICAL_WIDTH, type CardCanvas, type CardData, type RenderOptions, type RenderedCard,
+  LOGICAL_HEIGHT, LOGICAL_WIDTH, MAX_CANVAS_PIXELS, POSTER_SCALE, type CardCanvas, type CardData, type RenderOptions, type RenderedCard,
 } from "./types";
 
 export function slugify(name: string): string {
@@ -58,15 +59,18 @@ export function cardData(options: RenderOptions): CardData {
 
 export async function renderShareCard(options: RenderOptions): Promise<RenderedCard> {
   await ensureFont();
-  const scale = options.hd && options.paid ? 2 : 1;
+  const poster = options.format === "poster";
+  if (poster && !options.paid) throw new Error("Poster export requires the unlock");
+  const scale = poster ? POSTER_SCALE : options.hd && options.paid ? 2 : 1;
   const width = LOGICAL_WIDTH;
   const height = LOGICAL_HEIGHT[options.format];
+  if (width * scale * height * scale > MAX_CANVAS_PIXELS) throw new Error("Canvas too large");
   const canvas = (options.createCanvas ?? domCanvas)(width * scale, height * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D is not available");
   ctx.scale(scale, scale);
   const data = cardData(options);
-  (options.format === "story" ? drawStory : drawSquare)(ctx, data, width, height);
+  ({ story: drawStory, square: drawSquare, poster: drawPoster })[options.format](ctx, data, width, height);
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not encode the card"))), "image/png"),
   );
