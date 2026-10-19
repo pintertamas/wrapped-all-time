@@ -1,7 +1,7 @@
 // Persistence of the recap (StatsBundle aggregates only; raw plays never leave the worker) and prefs.
 // sessionStorage by default; localStorage when "Keep my recap on this device" is ticked.
 import type { StatsBundle } from "../model/types";
-import { PREFS_KEY, RECAP_KEY, UNLOCK_KEY } from "./keys";
+import { PREFS_KEY, RECAP_KEY } from "./keys";
 
 export interface Prefs { v: 1; keepRecap: boolean }
 
@@ -60,8 +60,4 @@ export function loadRecap(): StatsBundle | null {
   return null;
 }
 
-/** Honour-system unlock record written by the unlock flow; shape only is checked here. */
-export function isUnlocked(): boolean {
-  const u = read(local, UNLOCK_KEY) as { v?: number; keyLast4?: unknown } | null;
-  return !!u && u.v === 1 && typeof u.keyLast4 === "string";
-}
+export { isUnlocked } from "../unlock/entitlement";

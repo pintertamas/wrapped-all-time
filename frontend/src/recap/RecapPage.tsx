@@ -3,7 +3,9 @@ import type { PeriodStats, StatsBundle } from "../model/types";
 import type { RecapPeriod } from "../router";
 import { routeToHash } from "../router";
 import { clearEverything } from "../storage/clear";
-import { isUnlocked, loadPrefs, loadRecap, savePrefs } from "../storage/recap";
+import { loadPrefs, loadRecap, savePrefs } from "../storage/recap";
+import { isUnlocked } from "../unlock/entitlement";
+import LockedPreview from "./LockedPreview";
 import PeriodTabs from "./PeriodTabs";
 import StatTiles from "./StatTiles";
 import TopList from "./TopList";
@@ -62,18 +64,6 @@ function Periods({ stats }: { stats: PeriodStats }) {
   );
 }
 
-function Locked({ period }: { period: RecapPeriod }) {
-  return (
-    <section className="card" data-testid="locked">
-      <h2>{period === "all" ? "All time" : period} is part of the full unlock</h2>
-      <p className="note">Numbers: ••• minutes, ••• plays. Unlock once for $4.99 to see every year and all time.</p>
-      <a className="btn btn-primary" href={routeToHash({ view: "unlock", code: null })}>
-        Unlock
-      </a>
-    </section>
-  );
-}
-
 export default function RecapPage({ period }: { period: RecapPeriod }) {
   const [bundle] = useState<StatsBundle | null>(() => loadRecap());
   const [keep, setKeep] = useState(() => loadPrefs().keepRecap);
@@ -99,7 +89,7 @@ export default function RecapPage({ period }: { period: RecapPeriod }) {
   const stats = statsFor(bundle, period);
 
   let body;
-  if (!isFree(period) && !unlocked) body = <Locked period={period} />;
+  if (!isFree(period) && !unlocked) body = <LockedPreview label={periodLabel(period)} />;
   else if (!stats) {
     body = (
       <p className="note" data-testid="no-data">
@@ -132,7 +122,7 @@ export default function RecapPage({ period }: { period: RecapPeriod }) {
       )}
       {heading}
       <PeriodTabs period={period} />
-      <YearChips years={years} period={period} extended={extended} />
+      <YearChips years={years} period={period} extended={extended} unlocked={unlocked} />
       {body}
       <section className="card" aria-label="Your data">
         <label>
