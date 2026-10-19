@@ -81,7 +81,7 @@ frontend/
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
     static/static.css   stylesheet of the static pages
     static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
-    share/              card renderer (lazy chunk): render.ts (renderShareCard, shareFileName, Space Grotesk 700 via @fontsource, no CDN), layouts/story.ts + square.ts (common.ts: fitText, footer), altText.ts, lazy.ts (loadShareRenderer = the dynamic import). Story 1080x1920, square 1080x1080, paid HD 2x; free cards carry "made with <name> · <host>", all cards "Not affiliated with Spotify", sample cards "SAMPLE DATA"; file <slug>-<period>-<story|square>.png
+    share/              card renderer (lazy chunk): render.ts (renderShareCard, shareFileName, Space Grotesk 700 via @fontsource, no CDN), layouts/story.ts + square.ts (common.ts: fitText, footer), altText.ts, lazy.ts (loadShareRenderer = the dynamic import), ShareSheet.tsx (story + square previews with alt text; navigator.share with files only if canShare, else download + long-press hint; HD checkbox only when unlocked; opened by the Share button in RecapPage). Story 1080x1920, square 1080x1080, paid HD 2x; free cards carry "made with <name> · <host>", all cards "Not affiliated with Spotify", sample cards "SAMPLE DATA"; file <slug>-<period>-<story|square>.png
     index.css           app styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend)
@@ -233,3 +233,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Recap view: period tabs, year chips, stat tiles, top lists, `storage/` (lv.recap.v1, lv.prefs.v1), Clear everything (T014) | Claude Sonnet 5.5 |
 | 2026-10-19 | Static FAQ page and generated per-year pages `/year/<yyyy>/` (`src/static/yearPages.ts`, `lv-year-pages` plugin), all in the sitemap with CSP meta (T027) | Claude Sonnet 5.5 |
 | 2026-10-19 | Locked previews: `unlock/entitlement.ts` (read-only `isUnlocked`), `recap/LockedPreview.tsx`, teaser links on locked year chips / All time / HD to `#/unlock` (T015) | Claude Sonnet 5.5 |
+| 2026-10-19 | Share sheet: previews, Web Share with download fallback, HD only when unlocked (T017) | Claude Sonnet 5.5 |
