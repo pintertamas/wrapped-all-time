@@ -3,6 +3,7 @@
 import type { ExportKind, PeriodStats, StatsBundle } from "../model/types";
 import type { PlayStore } from "../import/store";
 import { dayNumberFromIso, isoFromDayNumber, LocalClock, rollingRanges, yearRange, type DayRange } from "./periods";
+import { DayAccumulator } from "./days";
 import { PLAY_THRESHOLD_MS, toMinutes, TopAccumulator } from "./tops";
 
 export interface ComputeOptions {
@@ -18,6 +19,7 @@ class Bucket {
   artists = new TopAccumulator();
   tracks = new TopAccumulator();
   albums = new TopAccumulator();
+  days = new DayAccumulator();
   constructor(readonly from: number, readonly to: number) {}
 
   toStats(withAlbums: boolean): PeriodStats {
@@ -26,8 +28,7 @@ class Bucket {
       minutes: toMinutes(this.musicMs), plays: this.plays, podcastMinutes: toMinutes(this.podcastMs),
       topArtists: this.artists.artists(), topTracks: this.tracks.withArtist(),
       topAlbums: withAlbums ? this.albums.withArtist() : null,
-      topDay: null, longestStreakDays: 0, activeDays: 0, firstTrack: null, skipRate: null,
-      hourMinutes: new Array<number>(24).fill(0),
+      ...this.days.result(withAlbums),
     };
   }
 }
@@ -84,9 +85,14 @@ export function computeStats(store: PlayStore, opts: ComputeOptions): StatsBundl
     }
     const counted = ms >= PLAY_THRESHOLD_MS;
     const trackKey = `${p.artist}\u0000${p.track}`;
+    const hour = clock.hour(t);
+    const ext = p.source === "extended";
+    const skipped = p.skipped === true;
     const albumKey = p.album === null ? null : `${p.artist}\u0000${p.album}`;
     for (const b of hit) {
       b.musicMs += ms;
+      b.days.add(day, hour, ms, counted);
+      if (ext) b.days.addExtended(t, day, p.track, p.artist, skipped);
       if (counted) b.plays++;
       b.artists.add(p.artist, p.artist, p.artist, ms, counted);
       b.tracks.add(trackKey, p.track, p.artist, ms, counted);
