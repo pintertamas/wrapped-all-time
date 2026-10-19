@@ -75,10 +75,10 @@ frontend/
     import/store.ts     PlayStore: columnar typed arrays + interned strings (worker only)
     stats/compute.ts    computeStats(store, {tz, sources, sample}) -> StatsBundle (periods 4w/6m/12m from latestPlay, years, allTime, tops, minutes, plays); periods.ts (LocalClock tz maths, ranges), tops.ts (TopAccumulator, 30 s threshold). days.ts (DayAccumulator): topDay, longestStreakDays, activeDays (30 s plays), hourMinutes (local hour), and Extended-only firstTrack / skipRate (null otherwise)
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (drop zone, progress, summary, errors)
-    recap/RecapPage.tsx recap view (shell)
+    recap/              RecapPage.tsx (loads the stored StatsBundle, period routing, Keep/Clear controls), PeriodTabs, YearChips (explains that years need Extended for Account-only), StatTiles (tiles + hour chart with text), TopList (bars aria-hidden, numbers as text). Years/all time show a locked placeholder unless sample or lv.unlock.v1
+    storage/            keys.ts (all lv.* keys), recap.ts (StatsBundle in sessionStorage, or localStorage when lv.prefs.v1 keepRecap; aggregates only), clear.ts (clearEverything: removes lv.* from both storages, terminates registered workers, goes to #/)
     unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
-    components/TopList.tsx  ranked list building block
     static/static.css   stylesheet of the static pages
     static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
     share/              card renderer (lazy chunk): render.ts (renderShareCard, shareFileName, Space Grotesk 700 via @fontsource, no CDN), layouts/story.ts + square.ts (common.ts: fitText, footer), altText.ts, lazy.ts (loadShareRenderer = the dynamic import). Story 1080x1920, square 1080x1080, paid HD 2x; free cards carry "made with <name> · <host>", all cards "Not affiliated with Spotify", sample cards "SAMPLE DATA"; file <slug>-<period>-<story|square>.png
@@ -230,3 +230,4 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-19 | Share card renderer v2: story/square canvas layouts, paid HD 2x, tier watermark, SAMPLE DATA mark, alt text, self-hosted Space Grotesk (T016) | Claude Sonnet 5.5 |
 | 2026-10-19 | Privacy page (stored `lv.*` keys, CSP enforcement) and terms page (unaffiliated statement, $4.99 unlock, honour system) replace the stubs (T023) | Claude Haiku 5.5 |
 | 2026-10-19 | Stats engine part 2: `stats/days.ts` top day, streaks, active days, hour minutes, first track, skip rate (T012) | Claude Sonnet 5.5 |
+| 2026-10-19 | Recap view: period tabs, year chips, stat tiles, top lists, `storage/` (lv.recap.v1, lv.prefs.v1), Clear everything (T014) | Claude Sonnet 5.5 |
