@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="How %VITE_PRODUCT_NAME% handles your data." />
+    <meta name="description" content="How %VITE_PRODUCT_NAME% handles your data: files are read on your device, and exactly what is stored in your browser." />
     <meta name="theme-color" content="#14111f" />
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/src/static/static.css" />
@@ -11,9 +11,38 @@
   </head>
   <body>
     <main class="static-page">
-      <p><a href="../">%VITE_PRODUCT_NAME%</a></p>
+      <p><a href="../">Back to %VITE_PRODUCT_NAME%</a></p>
       <h1>Privacy</h1>
-      <p>Your Spotify export files are read in your browser and never leave your device. The full privacy policy is coming soon.</p>
+      <p>Your Spotify export files are read in your browser and never leave your device. %VITE_PRODUCT_NAME% has no server that receives your listening history.</p>
+
+      <h2>What happens to your files</h2>
+      <ul>
+        <li>The ZIP or JSON files you load are read by a background worker in your browser.</li>
+        <li>Only summary numbers (totals, top lists and counts for each period) are kept for your recap. Individual plays are discarded after they are counted.</li>
+        <li>File contents, file names, artists, tracks and your Spotify account details are never uploaded.</li>
+        <li>After the first load, the app works without a connection to read your recap. Your files are never needed again once the recap is built.</li>
+      </ul>
+
+      <h2>What is stored on this device</h2>
+      <p>The app stores the following in your browser, under these exact keys. Nothing else is written.</p>
+      <ul>
+        <li><strong>lv.recap.v1</strong>: the summary numbers for your recap. Kept in session storage, so it is cleared when you close the tab. It moves to local storage (kept until you clear it) only if you choose to keep it.</li>
+        <li><strong>lv.prefs.v1</strong>: display preferences, such as the period you last viewed.</li>
+        <li><strong>lv.unlock.v1</strong>: after a successful unlock, the payment provider's name, the last 4 characters of your key, and the date it was checked. Never the full key and never the buyer email.</li>
+        <li><strong>lv.pkce.v1</strong>: only if the optional Spotify sign-in is switched on. It is deleted as soon as sign-in finishes.</li>
+      </ul>
+      <p>We never store your files, your file names, artists, tracks, individual plays, the full license key or your email address.</p>
+
+      <h2>How this is enforced</h2>
+      <p>Every page of this site sends a Content-Security-Policy. Its <code>connect-src</code> rule lists the only addresses the page may connect to: this site itself, and the license-check address used for unlocking (plus the analytics and Spotify addresses only when those features are switched on). Any other connection, including an upload of your files, is blocked by your browser. You can check this in your browser's developer tools.</p>
+
+      <h2>Analytics</h2>
+      <p>Analytics is off in this version. If it is turned on later, it will record only event names and coarse values, never file contents, artists or tracks, and this page will name the tool used.</p>
+
+      <h2>Delete everything</h2>
+      <p>To remove everything this site has stored, clear the site data for this address in your browser settings. Your files stay wherever you keep them, because they were never uploaded.</p>
+
+      <p>Read the <a href="../terms/">terms of use</a>, or go back to <a href="../">%VITE_PRODUCT_NAME%</a>.</p>
     </main>
     <footer class="static-footer">
       <p>%VITE_PRODUCT_NAME% is not affiliated with, endorsed by or connected to Spotify.</p>
