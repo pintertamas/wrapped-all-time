@@ -53,10 +53,10 @@ all time, HD cards without watermark, poster. Not affiliated with Spotify.
 frontend/
   .env                  public VITE_* defaults (committed on purpose; never secrets)
   index.html            app entry (landing copy is static HTML before React mounts)
-  guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy/terms are stubs
-  vite.config.ts        base path, multi-page inputs, CSP meta, page meta and SEO/_headers plugins, vitest config
+  guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy lists the lv.* storage keys and the CSP enforcement, terms holds the unaffiliated statement, the $4.99 unlock and the honour-system note
+  vite.config.ts        base path, multi-page inputs, CSP meta, page meta, SEO/_headers and year-page plugins, vitest config
   scripts/size-check.mjs, size-budgets.mjs   per-role gzip budgets, run after the build
-  e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build
+  e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build (helpers.ts, global-setup.ts: fixtures via `npm run fixtures` when missing)
   public/.nojekyll, public/og.png, goatcounter-count.js   (goatcounter-count.js: self-hosted minimal GoatCounter client, loaded only when analytics is on; robots.txt, sitemap.xml and the Cloudflare `_headers` are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS / the CSP config, nothing generated is committed; the lv-page-meta plugin adds robots meta, canonical link and the env label to every built page)
   src/
     main.tsx            React root
@@ -74,18 +74,22 @@ frontend/
     import/useImport.ts React hook (useSyncExternalStore) over the import client; ImportPage accepts an injected client for tests
     import/dedupe.ts    FileDeduper (rule 1), PlayDeduper (rule 2, hash table), dropAccountOverlap (rule 3)
     import/store.ts     PlayStore: columnar typed arrays + interned strings (worker only)
+    stats/compute.ts    computeStats(store, {tz, sources, sample}) -> StatsBundle (periods 4w/6m/12m from latestPlay, years, allTime, tops, minutes, plays); periods.ts (LocalClock tz maths, ranges), tops.ts (TopAccumulator, 30 s threshold). days.ts (DayAccumulator): topDay, longestStreakDays, activeDays (30 s plays), hourMinutes (local hour), and Extended-only firstTrack / skipRate (null otherwise)
     pages/Landing.tsx, pages/ImportPage.tsx  landing and import views (drop zone, progress, summary, errors)
-    recap/RecapPage.tsx recap view (shell)
-    unlock/UnlockSheet.tsx  unlock view (shell; "Coming soon" while provider is none)
+    recap/              RecapPage.tsx (loads the stored StatsBundle, period routing, Keep/Clear controls), PeriodTabs, YearChips (explains that years need Extended for Account-only), StatTiles (tiles + hour chart with text), TopList (bars aria-hidden, numbers as text). Years/all time show a locked placeholder unless sample or lv.unlock.v1
+    storage/            keys.ts (all lv.* keys), recap.ts (StatsBundle in sessionStorage, or localStorage when lv.prefs.v1 keepRecap; aggregates only), clear.ts (clearEverything: removes lv.* from both storages, terminates registered workers, goes to #/)
+    unlock/UnlockSheet.tsx  unlock view, lazy-loaded from App: $4.99 offer, checkout link (VITE_CHECKOUT_URL, "Coming soon" when empty), key field (prefilled via readCodeFromHash), per-reason error messages (FAILURE_MESSAGES), lost-key link only with VITE_SUPPORT_URL, Account-only warning, honest notes
+    unlock/             verifier.ts (UnlockVerifier, createVerifier(config): none -> comingSoonVerifier, no request), verifiers/lemonsqueezy.ts (POST /v1/licenses/validate; Gumroad is a later task), key.ts (normalizeKey), entitlement.ts (isUnlocked, writeEntitlement -> lv.unlock.v1 {v,provider,keyLast4,verifiedAt}, redeemKey = verify + write, readCodeFromHash strips ?code= via replaceState). Never store or log the full key or the provider response; tests use mocked fetch only
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
-    components/TopList.tsx  ranked list building block
     components/EnvLabel.tsx  visible environment label (VITE_ENV_LABEL, e.g. TEST SITE), nothing when empty
     static/static.css   stylesheet of the static pages
+    static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
+    share/              card renderer (lazy chunk): render.ts (renderShareCard, shareFileName, Space Grotesk 700 via @fontsource, no CDN), layouts/story.ts + square.ts (common.ts: fitText, footer), altText.ts, lazy.ts (loadShareRenderer = the dynamic import), ShareSheet.tsx (story + square previews with alt text; navigator.share with files only if canShare, else download + long-press hint; HD checkbox only when unlocked; opened by the Share button in RecapPage). Story 1080x1920, square 1080x1080, paid HD 2x; free cards carry "made with <name> · <host>", all cards "Not affiliated with Spotify", sample cards "SAMPLE DATA"; file <slug>-<period>-<story|square>.png
     index.css           app styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
 .github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend to GitHub Pages, Deploy Frontend to Cloudflare Pages)
 ```
-Planned modules (see the engineering plan § Repo layout): `stats/`, `sample/`, `share/`, `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
+Planned modules (see the engineering plan § Repo layout): `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
 
 ## 2. Essential Commands
 ```bash
@@ -133,8 +137,8 @@ logic so tests drive it without a Worker. Per input file: ZIPs (detected by magi
 fflate's streaming `Unzip` in 1 MB chunks, each `.json` entry is inflated alone, parsed, adapted and
 released before the next one; loose JSON is read in chunks. Plays go through `PlayDeduper` into the
 columnar `PlayStore`; after all files `dropAccountOverlap` removes Account plays inside the Extended
-range. Only `ImportSummary` and a `StatsBundle` cross `postMessage`; the stats engine (T011) replaces
-`placeholderStats`. Progress is throttled to one message per 125 ms. Cancel in the client terminates the
+range. Only `ImportSummary` and a `StatsBundle` cross `postMessage`; the worker builds the bundle with
+`stats/computeStats`. Progress is throttled to one message per 125 ms. Cancel in the client terminates the
 worker and spawns a fresh one; stale messages are ignored by job id. `loadSample` runs
 `sample/generate.ts` through the same adapters and store (`stats.sample = true`). `ImportSummary.duplicatesSkipped` counts
 duplicate plays (rule 2); skipped duplicate files (rule 1) show as `files[].duplicateOf`. Error codes:
@@ -197,8 +201,7 @@ in `ci-cd.yaml` if the name is taken or a custom domain replaces `pages.dev`).
   `describe/it/expect` from `vitest`. Unit tests run on the `.env` defaults; read values through
   `config` rather than hard-coding the product name or base path.
 - E2E specs live in `frontend/e2e/*.spec.ts` (excluded from vitest), chromium only, against the
-  production build under the real base path. Today: `smoke.spec.ts` (CSP meta on every page, the
-  hash routes). Planned: privacy canary, offline, perf, errors, CSP-vs-config.
+  production build under the real base path. Specs: `smoke` (CSP meta, hash routes), `privacy` (ZZCANARY ZIP: every request same-origin except the mocked verify POST whose body is exactly `license_key=<key>`; canary in no URL/header/body), `offline` (import + recap after `setOffline`; the worker is respawned online via Cancel first because it is fetched lazily), `perf` (50 MB set under 15 s), `errors` (wrong package, unrecognised file, corrupt ZIP), `csp` (meta equals `buildCsp(config)`, blocked foreign fetch). The privacy spec runs on a second preview (port 4174, `dist-verify/`, built with the Lemon Squeezy verifier on) started by `playwright.config.ts`.
 
 - Import tests build inputs with `__fixtures__/files.ts` (`memFile`, `zipFile`): jsdom's `File`/`Blob`
   has no `arrayBuffer()`, and the pipeline only needs `{ name, size, slice().arrayBuffer() }`.
@@ -236,5 +239,19 @@ in `ci-cd.yaml` if the name is taken or a custom domain replaces `pages.dev`).
 | 2026-10-17 | File classifier, Account/Extended schema adapters with field allow-list, StructureInfo builder, synthetic fixtures (T008) | Claude Sonnet 5.5 |
 | 2026-10-18 | Parse worker pipeline: fflate streaming unzip, Worker protocol handler, throttled progress, cancel = terminate + fresh worker, de-dupe rules 1-3, columnar play store, no-network guard test (T010) | Claude Sonnet 5.5 |
 | 2026-10-18 | Seeded sample-history generator (`src/sample/generate.ts`) and `npm run fixtures` (`scripts/make-fixtures.mjs`) writing gitignored ZIPs to `frontend/.fixtures/` (T009) | Claude Sonnet 5.5 |
+| 2026-10-18 | Stats engine part 1: `src/stats/` periods, calendar years in the user's tz, all time, tops, minutes/plays; worker now returns real StatsBundle (T011) | Claude Sonnet 5.5 |
+| 2026-10-18 | Guide extras: which-file checker, reminder .ics, recap-week countdown in a <6 kB static script (T019) | Claude Sonnet 5.5 |
 | 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
 | 2026-10-18 | Cloudflare Pages production deploy job, generated `_headers`, canonical + robots meta on every page, staging noindex with visible TEST SITE label (T025) | Claude Sonnet 5.5 |
+| 2026-10-19 | Share card renderer v2: story/square canvas layouts, paid HD 2x, tier watermark, SAMPLE DATA mark, alt text, self-hosted Space Grotesk (T016) | Claude Sonnet 5.5 |
+| 2026-10-19 | Privacy page (stored `lv.*` keys, CSP enforcement) and terms page (unaffiliated statement, $4.99 unlock, honour system) replace the stubs (T023) | Claude Haiku 5.5 |
+| 2026-10-19 | Stats engine part 2: `stats/days.ts` top day, streaks, active days, hour minutes, first track, skip rate (T012) | Claude Sonnet 5.5 |
+| 2026-10-19 | Recap view: period tabs, year chips, stat tiles, top lists, `storage/` (lv.recap.v1, lv.prefs.v1), Clear everything (T014) | Claude Sonnet 5.5 |
+| 2026-10-19 | Static FAQ page and generated per-year pages `/year/<yyyy>/` (`src/static/yearPages.ts`, `lv-year-pages` plugin), all in the sitemap with CSP meta (T027) | Claude Sonnet 5.5 |
+| 2026-10-19 | Count-up motion on stat tiles (900 ms ease-out), off under reduced motion or without matchMedia (T028) | software factory |
+| 2026-10-19 | Locked previews: `unlock/entitlement.ts` (read-only `isUnlocked`), `recap/LockedPreview.tsx`, teaser links on locked year chips / All time / HD to `#/unlock` (T015) | Claude Sonnet 5.5 |
+| 2026-10-19 | Share sheet: previews, Web Share with download fallback, HD only when unlocked (T017) | Claude Sonnet 5.5 |
+| 2026-10-19 | UnlockVerifier interface, Lemon Squeezy verifier, entitlement write (`redeemKey`) and `readCodeFromHash` (T020) | Claude Sonnet 5.5 |
+| 2026-10-19 | Unlock sheet: checkout link, key entry/restore, per-reason errors, Account-only warning, lazy chunk (T021) | Claude Sonnet 5.5 |
+| 2026-10-19 | Playwright e2e suite: privacy canary, offline, perf, errors, CSP (T024) | Claude Sonnet 5.5 |
+| 2026-10-20 | Paid print poster: `share/layouts/poster.ts` (1080x1440 logical, 2.5x = 2700x3600 px, under 16.7 MP), poster section in ShareSheet (unlock teaser when locked) (T026) | Claude Sonnet 5.5 |

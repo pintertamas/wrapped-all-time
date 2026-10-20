@@ -1,9 +1,10 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { config } from "../config";
 import type { ImportClient, ImportProgress } from "../import/client";
 import { useImport } from "../import/useImport";
 import type { FileReport, ImportErrorCode, ImportSummary, StructureInfo } from "../model/types";
 import { routeToHash } from "../router";
+import { saveRecap } from "../storage/recap";
 
 const ACCEPT = ".zip,.json,application/zip";
 const SAMPLE_SEED = 1;
@@ -133,6 +134,11 @@ export default function ImportPage({ client: injected }: { client?: ImportClient
     setOver(false);
     take(e.dataTransfer?.files ?? null);
   };
+
+  const doneStats = state.status === "done" ? state.stats : null;
+  useEffect(() => {
+    if (doneStats) saveRecap(doneStats);
+  }, [doneStats]);
 
   const idle = state.status === "idle" || state.status === "cancelled";
   const progress = state.status === "running" ? state.progress : null;

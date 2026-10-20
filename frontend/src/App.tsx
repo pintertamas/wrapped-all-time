@@ -1,10 +1,11 @@
 import EnvLabel from "./components/EnvLabel";
+import { lazy, Suspense } from "react";
 import { config } from "./config";
 import ImportPage from "./pages/ImportPage";
 import Landing from "./pages/Landing";
 import RecapPage from "./recap/RecapPage";
 import { routeToHash, useRoute } from "./router";
-import UnlockSheet from "./unlock/UnlockSheet";
+const UnlockSheet = lazy(() => import("./unlock/UnlockSheet"));
 
 const page = (path: string) => `${config.basePath}${path}`;
 
@@ -22,7 +23,11 @@ export default function App() {
       {route.view === "landing" && <Landing />}
       {route.view === "import" && <ImportPage />}
       {route.view === "recap" && <RecapPage period={route.period} />}
-      {route.view === "unlock" && <UnlockSheet code={route.code} />}
+      {route.view === "unlock" && (
+        <Suspense fallback={<main className="page"><h1>Unlock every year</h1></main>}>
+          <UnlockSheet code={route.code} />
+        </Suspense>
+      )}
       <footer className="site-footer">
         <p className="note">Not affiliated with Spotify. Your files are read on this device and never uploaded.</p>
         <nav aria-label="Footer">
