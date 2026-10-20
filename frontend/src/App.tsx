@@ -1,3 +1,4 @@
+import EnvLabel from "./components/EnvLabel";
 import { lazy, Suspense } from "react";
 import { config } from "./config";
 import ImportPage from "./pages/ImportPage";
@@ -13,6 +14,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <EnvLabel label={config.envLabel} />
       <header className="site-header">
         <a className="brand" href={routeToHash({ view: "landing" })}>
           {config.productName}

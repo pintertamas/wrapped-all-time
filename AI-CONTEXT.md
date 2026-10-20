@@ -34,9 +34,10 @@ all time, HD cards without watermark, poster. Not affiliated with Spotify.
   client-side bypass are accepted at this price. Locked previews render placeholder text, never the
   real values. The full key and the provider response (buyer email) are never stored.
 - **Environments:** staging = GitHub Pages (`pintertamas.github.io/wrapped-all-time/`, provider test
-  mode, `noindex`, "TEST SITE" label); production = Cloudflare Pages (`<CF_PAGES_PROJECT>.pages.dev`,
-  live provider values set by the owner at go-live; deploy job added later). Live checkout is never
-  configured on GitHub Pages.
+  mode; the deploy job forces `noindex`, a visible "TEST SITE" label and a canonical link to
+  production); production = Cloudflare Pages (`<CF_PAGES_PROJECT>.pages.dev`, GitHub Environment
+  `production`, live provider values set by the owner at go-live; deploy job
+  `deploy-frontend-cloudflare`). Live checkout is never configured on GitHub Pages.
 
 ### Tech Stack
 | Layer | Technology |
@@ -53,10 +54,10 @@ frontend/
   .env                  public VITE_* defaults (committed on purpose; never secrets)
   index.html            app entry (landing copy is static HTML before React mounts)
   guide/ privacy/ terms/index.html   static pages (no React); guide is the full export guide, privacy lists the lv.* storage keys and the CSP enforcement, terms holds the unaffiliated statement, the $4.99 unlock and the honour-system note
-  vite.config.ts        base path, multi-page inputs, CSP meta plugin, vitest config
+  vite.config.ts        base path, multi-page inputs, CSP meta, page meta, SEO/_headers and year-page plugins, vitest config
   scripts/size-check.mjs, size-budgets.mjs   per-role gzip budgets, run after the build
   e2e/playwright.config.ts, *.spec.ts        e2e against `vite preview` of the build (helpers.ts, global-setup.ts: fixtures via `npm run fixtures` when missing)
-  public/.nojekyll, public/og.png, goatcounter-count.js   (goatcounter-count.js: self-hosted minimal GoatCounter client, loaded only when analytics is on; robots.txt and sitemap.xml are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS)
+  public/.nojekyll, public/og.png, goatcounter-count.js   (goatcounter-count.js: self-hosted minimal GoatCounter client, loaded only when analytics is on; robots.txt, sitemap.xml and the Cloudflare `_headers` are emitted at build by the lv-seo-files plugin in vite.config.ts from VITE_SITE_URL / VITE_ROBOTS / the CSP config, nothing generated is committed; the lv-page-meta plugin adds robots meta, canonical link and the env label to every built page)
   src/
     main.tsx            React root
     App.tsx             shell: header, current view, footer (unaffiliated line, guide/privacy/terms, Restore purchase)
@@ -80,12 +81,13 @@ frontend/
     unlock/UnlockSheet.tsx  unlock view, lazy-loaded from App: $4.99 offer, checkout link (VITE_CHECKOUT_URL, "Coming soon" when empty), key field (prefilled via readCodeFromHash), per-reason error messages (FAILURE_MESSAGES), lost-key link only with VITE_SUPPORT_URL, Account-only warning, honest notes
     unlock/             verifier.ts (UnlockVerifier, createVerifier(config): none -> comingSoonVerifier, no request), verifiers/lemonsqueezy.ts (POST /v1/licenses/validate; Gumroad is a later task), key.ts (normalizeKey), entitlement.ts (isUnlocked, writeEntitlement -> lv.unlock.v1 {v,provider,keyLast4,verifiedAt}, redeemKey = verify + write, readCodeFromHash strips ?code= via replaceState). Never store or log the full key or the provider response; tests use mocked fetch only
     analytics/track.ts  track(name, props): no-op unless VITE_ANALYTICS_PROVIDER=goatcounter; goatcounter.ts adapter lazy-loaded
+    components/EnvLabel.tsx  visible environment label (VITE_ENV_LABEL, e.g. TEST SITE), nothing when empty
     static/static.css   stylesheet of the static pages
     static/guide.ts     guide page script (progressive enhancement, <6 kB gzip): ics.ts (reminder .ics, CRLF, 75-octet folding), whichFile.ts (name -> package), countdown.ts (to 2026-12-02, hides itself after)
     share/              card renderer (lazy chunk): render.ts (renderShareCard, shareFileName, Space Grotesk 700 via @fontsource, no CDN), layouts/story.ts + square.ts (common.ts: fitText, footer), altText.ts, lazy.ts (loadShareRenderer = the dynamic import), ShareSheet.tsx (story + square previews with alt text; navigator.share with files only if canShare, else download + long-press hint; HD checkbox only when unlocked; opened by the Share button in RecapPage). Story 1080x1920, square 1080x1080, paid HD 2x; free cards carry "made with <name> · <host>", all cards "Not affiliated with Spotify", sample cards "SAMPLE DATA"; file <slug>-<period>-<story|square>.png
     index.css           app styles, mobile-first
     test-setup.ts       jest-dom matchers and cleanup
-.github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend)
+.github/workflows/ci-cd.yaml   CI/CD (Detect Changes, Code Quality & Tests, Deploy Frontend to GitHub Pages, Deploy Frontend to Cloudflare Pages)
 ```
 Planned modules (see the engineering plan § Repo layout): `unlock/` verifiers, `analytics/`, `storage/`, `static/` scripts.
 
@@ -119,7 +121,8 @@ variables for PR builds). An empty/unset variable falls back to the `.env` defau
 | `VITE_BASE_PATH` | `/` (CI: `/<repo>/`) | base path |
 | `VITE_PRODUCT_NAME` | `Listening Vault` | the one name string |
 | `VITE_SITE_URL` | staging URL | canonical, sitemap, watermark host |
-| `VITE_ROBOTS`, `VITE_ENV_LABEL` | `index`, empty | staging: `noindex`, `TEST SITE` |
+| `VITE_CANONICAL_URL` | empty (= `VITE_SITE_URL`) | canonical origin of every page; staging points it at production |
+| `VITE_ROBOTS`, `VITE_ENV_LABEL` | `index`, empty | staging: `noindex`, `TEST SITE` (forced by the staging deploy job) |
 | `VITE_CHECKOUT_URL` | empty | hosted checkout link ("coming soon" when empty) |
 | `VITE_UNLOCK_PROVIDER` | `none` | `lemonsqueezy` \| `gumroad` \| `none` |
 | `VITE_UNLOCK_PRODUCT_ID`, `VITE_UNLOCK_STORE_ID` | empty | IDs the key must belong to |
@@ -148,12 +151,24 @@ rethrows them after `push()` returns.
 on every HTML page (`buildCsp` in `configSchema.ts`): `default-src 'self'; script-src 'self'; ...;
 connect-src 'self' [verify host] [<site>.goatcounter.com] [Spotify hosts]; object-src 'none';
 base-uri 'self'; form-action 'none'`. A bracketed host appears only when its config is set.
-Production will also send it as a real header via a generated `_headers` (with
-`frame-ancestors 'none'`).
+Production also sends it as a real header via the generated `dist/_headers` (`buildHeaders` in
+`configSchema.ts`): the same CSP plus `frame-ancestors 'none'`, `Referrer-Policy: no-referrer`,
+`X-Content-Type-Options: nosniff`, `X-Robots-Tag: noindex` when `VITE_ROBOTS=noindex`, and
+`Cache-Control: public, max-age=31536000, immutable` for `<base>assets/*` (hashed files). GitHub
+Pages ignores `_headers`; staging relies on the meta CSP.
 
 **Deploy.** Merging to `main` with frontend changes builds `frontend/` with the `github-pages`
 environment variables and deploys `frontend/dist` to GitHub Pages staging (`index.html` copied to
-`404.html`). The Cloudflare production job comes in its own task.
+`404.html`). The staging job hardcodes `VITE_ROBOTS=noindex`, `VITE_ENV_LABEL=TEST SITE` and
+`VITE_CANONICAL_URL=https://<CF_PAGES_PROJECT>.pages.dev/`, so the test site can never be indexed
+and always shows the label. In parallel, job `deploy-frontend-cloudflare` (Environment `production`,
+same triggers) builds with `VITE_BASE_PATH=/`, `VITE_SITE_URL`/`VITE_CANONICAL_URL` set to
+`https://<CF_PAGES_PROJECT>.pages.dev/` and no label, then in one step looks the Pages project up
+through the Cloudflare API, creates it with wrangler only when it is missing (404) and runs
+`wrangler pages deploy dist --branch main`. It is skipped while the repo variable
+`CLOUDFLARE_ACCOUNT_ID` is empty. `CLOUDFLARE_API_TOKEN` is only passed to that step and is never
+echoed. The project name is the workflow env `CF_PAGES_PROJECT` (default `listening-vault`; change it
+in `ci-cd.yaml` if the name is taken or a custom domain replaces `pages.dev`).
 
 ## 4. Code Patterns
 
@@ -172,13 +187,13 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 - Branches, commit messages and PRs: the `git-conventions` skill
   (`.claude/skills/git-conventions/SKILL.md`) — `<type>/<short-description>` branches, Conventional
   Commits, merge commits only, auto-merge when **Code Quality & Tests** is green.
-- Merging to `main` deploys `frontend/**` to GitHub Pages staging. There is no backend deploy.
+- Merging to `main` deploys `frontend/**` to GitHub Pages staging and, once `CLOUDFLARE_ACCOUNT_ID` is set, to Cloudflare Pages production. There is no backend deploy.
 
 ### Required GitHub Configuration (names only)
 | Kind | Names |
 |---|---|
-| Secrets | none yet (`CLOUDFLARE_API_TOKEN` when the production deploy lands) |
-| Variables | `VITE_*` (above; Environment `github-pages` = staging test mode, `production` = live), `CLOUDFLARE_ACCOUNT_ID` (later) |
+| Secrets | `CLOUDFLARE_API_TOKEN` (Environment `production`; Pages edit scope; read only by the deploy step) |
+| Variables | `VITE_*` (above; Environment `github-pages` = staging test mode, `production` = live), `CLOUDFLARE_ACCOUNT_ID` (repo variable, public id; the Cloudflare deploy job is skipped while it is empty; `CF_PAGES_PROJECT` is a committed workflow env, not a variable) |
 
 ## 6. Testing Guidelines
 
@@ -227,6 +242,7 @@ environment variables and deploys `frontend/dist` to GitHub Pages staging (`inde
 | 2026-10-18 | Stats engine part 1: `src/stats/` periods, calendar years in the user's tz, all time, tops, minutes/plays; worker now returns real StatsBundle (T011) | Claude Sonnet 5.5 |
 | 2026-10-18 | Guide extras: which-file checker, reminder .ics, recap-week countdown in a <6 kB static script (T019) | Claude Sonnet 5.5 |
 | 2026-10-18 | Import page: drop zone/picker, aria-live progress, cancel, summary, error states, "Copy file info" (StructureInfo only); `import/useImport.ts` hook over the import client (T013) | Claude Sonnet 5.5 |
+| 2026-10-18 | Cloudflare Pages production deploy job, generated `_headers`, canonical + robots meta on every page, staging noindex with visible TEST SITE label (T025) | Claude Sonnet 5.5 |
 | 2026-10-19 | Share card renderer v2: story/square canvas layouts, paid HD 2x, tier watermark, SAMPLE DATA mark, alt text, self-hosted Space Grotesk (T016) | Claude Sonnet 5.5 |
 | 2026-10-19 | Privacy page (stored `lv.*` keys, CSP enforcement) and terms page (unaffiliated statement, $4.99 unlock, honour system) replace the stubs (T023) | Claude Haiku 5.5 |
 | 2026-10-19 | Stats engine part 2: `stats/days.ts` top day, streaks, active days, hour minutes, first track, skip rate (T012) | Claude Sonnet 5.5 |

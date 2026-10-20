@@ -139,6 +139,18 @@ a.btn {
   align-items: center;
 }
 
+/* Environment label (staging: "TEST SITE"), shown on every page when VITE_ENV_LABEL is set. */
+.env-label {
+  padding: 0.35rem 1rem;
+  background: #f5c542;
+  color: #14111f;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

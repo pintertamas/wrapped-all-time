@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULTS, buildCsp, parseConfig } from "./configSchema";
+import { DEFAULTS, buildCsp, buildHeaders, canonicalFor, parseConfig } from "./configSchema";
 
 function connectSrc(csp: string): string[] {
   const directive = csp.split("; ").find((d) => d.startsWith("connect-src "));
@@ -46,7 +46,7 @@ describe("parseConfig", () => {
     }
     expect(Object.keys(env).sort()).toEqual(
       [
-        "VITE_ANALYTICS_PROVIDER", "VITE_ANALYTICS_SITE", "VITE_BASE_PATH", "VITE_CHECKOUT_URL", "VITE_ENV_LABEL",
+        "VITE_ANALYTICS_PROVIDER", "VITE_ANALYTICS_SITE", "VITE_BASE_PATH", "VITE_CANONICAL_URL", "VITE_CHECKOUT_URL", "VITE_ENV_LABEL",
         "VITE_FEATURE_LOGIN", "VITE_PRODUCT_NAME", "VITE_ROBOTS", "VITE_SITE_URL", "VITE_SPOTIFY_CLIENT_ID",
         "VITE_SUPPORT_URL", "VITE_UNLOCK_PRODUCT_ID", "VITE_UNLOCK_PROVIDER", "VITE_UNLOCK_STORE_ID",
       ],
@@ -94,5 +94,38 @@ describe("buildCsp", () => {
       "https://accounts.spotify.com",
       "https://api.spotify.com",
     ]);
+  });
+});
+
+describe("canonicalFor", () => {
+  it("uses the site URL unless a canonical origin is set", () => {
+    expect(canonicalFor(DEFAULTS, "guide/")).toBe("https://pintertamas.github.io/wrapped-all-time/guide/");
+    const staging = parseConfig({ VITE_SITE_URL: "https://s.example/app", VITE_CANONICAL_URL: "https://prod.pages.dev" });
+    expect(canonicalFor(staging, "")).toBe("https://prod.pages.dev/");
+    expect(canonicalFor(staging, "guide/")).toBe("https://prod.pages.dev/guide/");
+  });
+});
+
+describe("buildHeaders", () => {
+  it("sends the security headers and immutable caching for hashed assets", () => {
+    const headers = buildHeaders(parseConfig({ VITE_BASE_PATH: "/" }));
+    expect(headers).toContain("/*\n");
+    expect(headers).toContain("frame-ancestors 'none'");
+    expect(headers).toContain("default-src 'self'");
+    expect(headers).toContain("Referrer-Policy: no-referrer");
+    expect(headers).toContain("X-Content-Type-Options: nosniff");
+    expect(headers).toContain("/assets/*\n  Cache-Control: public, max-age=31536000, immutable");
+    expect(headers).not.toContain("X-Robots-Tag");
+  });
+
+  it("adds X-Robots-Tag when noindex and follows the base path", () => {
+    const headers = buildHeaders(parseConfig({ VITE_ROBOTS: "noindex", VITE_BASE_PATH: "/app/" }));
+    expect(headers).toContain("X-Robots-Tag: noindex");
+    expect(headers).toContain("\n/app/assets/*\n");
+  });
+
+  it("shares its CSP with the page meta tag", () => {
+    const cfg = parseConfig({ VITE_UNLOCK_PROVIDER: "gumroad" });
+    expect(buildHeaders(cfg)).toContain(`Content-Security-Policy: ${buildCsp(cfg)}; frame-ancestors 'none'`);
   });
 });

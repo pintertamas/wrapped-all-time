@@ -52,5 +52,16 @@ test("guide page is readable without JavaScript and ships SEO files", async ({ b
   const xml = await sitemap.text();
   for (const path of ["", "guide/", "privacy/", "terms/"]) expect(xml).toContain(`${path}</loc>`);
   expect((await page.request.get(`${baseURL}robots.txt`)).ok()).toBe(true);
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
   await context.close();
+});
+
+test("production headers file carries the security headers", async ({ page, baseURL }) => {
+  const response = await page.request.get(`${baseURL}_headers`);
+  expect(response.ok()).toBe(true);
+  const headers = await response.text();
+  expect(headers).toContain("frame-ancestors 'none'");
+  expect(headers).toContain("Referrer-Policy: no-referrer");
+  expect(headers).toContain("X-Content-Type-Options: nosniff");
+  expect(headers).toMatch(/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable/);
 });

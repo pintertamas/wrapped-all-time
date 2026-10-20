@@ -8,6 +8,8 @@ export interface AppConfig {
   basePath: string;
   productName: string;
   siteUrl: string;
+  /** Canonical origin of the production site; empty means siteUrl. Staging points it at production. */
+  canonicalUrl: string;
   robots: "index" | "noindex";
   envLabel: string;
   checkoutUrl: string;
@@ -26,6 +28,7 @@ export const DEFAULTS: AppConfig = {
   basePath: "/",
   productName: "Listening Vault",
   siteUrl: "https://pintertamas.github.io/wrapped-all-time/",
+  canonicalUrl: "",
   robots: "index",
   envLabel: "",
   checkoutUrl: "",
@@ -58,6 +61,7 @@ export function parseConfig(env: Env): AppConfig {
     basePath: str(env, "BASE_URL", str(env, "VITE_BASE_PATH", DEFAULTS.basePath)),
     productName: str(env, "VITE_PRODUCT_NAME", DEFAULTS.productName),
     siteUrl: str(env, "VITE_SITE_URL", DEFAULTS.siteUrl),
+    canonicalUrl: str(env, "VITE_CANONICAL_URL", DEFAULTS.canonicalUrl),
     robots: oneOf(env, "VITE_ROBOTS", ["index", "noindex"], DEFAULTS.robots),
     envLabel: str(env, "VITE_ENV_LABEL", DEFAULTS.envLabel),
     checkoutUrl: str(env, "VITE_CHECKOUT_URL", DEFAULTS.checkoutUrl),
@@ -91,6 +95,16 @@ export function spotifyOrigins(cfg: AppConfig): string[] {
   return ["https://accounts.spotify.com", "https://api.spotify.com"];
 }
 
+/** Site origin with a trailing slash. */
+export function withSlash(url: string): string {
+  return url.endsWith("/") ? url : `${url}/`;
+}
+
+/** Canonical URL of a page path ("", "guide/", ...): the canonical origin, else the site URL. */
+export function canonicalFor(cfg: AppConfig, pagePath: string): string {
+  return `${withSlash(cfg.canonicalUrl || cfg.siteUrl)}${pagePath}`;
+}
+
 /** The Content-Security-Policy for every HTML page (eng/frontend.md § Config, CSP). */
 export function buildCsp(cfg: AppConfig): string {
   const connect = ["'self'", unlockVerifyOrigin(cfg), analyticsOrigin(cfg), ...spotifyOrigins(cfg)].filter(
@@ -108,4 +122,19 @@ export function buildCsp(cfg: AppConfig): string {
     "base-uri 'self'",
     "form-action 'none'",
   ].join("; ");
+}
+
+/** Content of the Cloudflare Pages `_headers` file (production). The CSP is the page CSP plus
+ *  `frame-ancestors 'none'`, which a meta tag cannot carry. Hashed assets get a year of immutable cache. */
+export function buildHeaders(cfg: AppConfig): string {
+  const base = withSlash(cfg.basePath);
+  const lines = [
+    "/*",
+    `  Content-Security-Policy: ${buildCsp(cfg)}; frame-ancestors 'none'`,
+    "  Referrer-Policy: no-referrer",
+    "  X-Content-Type-Options: nosniff",
+  ];
+  if (cfg.robots === "noindex") lines.push("  X-Robots-Tag: noindex");
+  lines.push("", `${base}assets/*`, "  Cache-Control: public, max-age=31536000, immutable", "");
+  return lines.join("\n");
 }
